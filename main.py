@@ -29,9 +29,11 @@ def process_transactions() -> None:
         if len(amazon_tran.item_names) > 1:
             for i, item in enumerate(amazon_tran.item_names, start=1):
                 memo += f"{i}. {item}  \n"
-        else:
+        elif len(amazon_tran.item_names) == 1:
             memo += amazon_tran.item_names[0] + "  \n"
+
         memo += amazon_tran.order_link
+            
         print('\nMemo:')
         print(memo)
 
