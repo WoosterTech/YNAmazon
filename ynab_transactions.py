@@ -53,9 +53,9 @@ def find_item_by_attribute(items, attribute, value) -> Any | None:
             return item
 
 def print_ynab_transactions(transactions) -> None:
-    print(f"found {len(transactions)} transactions")
+    print(f"found {len(transactions)} transactions with the payee name of {config.ynab_payee_name_to_be_processed}")
     for transaction in transactions:
-        print(f'{transaction.var_date} - {transaction.payee_id}: ${transaction.amount/-1000:.2f}\n')
+        print(f'{transaction.var_date}: ${transaction.amount/-1000:.2f}\n')
 
 if __name__ == "__main__":
-    print_ynab_transactions(transactions=get_ynab_transactions())
+    print_ynab_transactions(transactions=get_ynab_transactions()[0])
