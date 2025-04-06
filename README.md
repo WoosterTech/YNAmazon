@@ -12,12 +12,12 @@ A program to annotate YNAB transactions with Amazon order info
    3. Add your YNAB API key in the appropriate line. It can be found by going to your YNAB Account Settings and clicking on Developer Settings
    4. Add your YNAB Budget ID. This can be found in the URL of your budget page 
    5. Add your Amazon username (email) and password
-5. Run `pip install amazon-orders ynab` or `pip install -r requirements.txt`
+5. Run `pip install amazon-orders ynab` or `pip install -r requirements.txt` to install dependencies
 
 ## Running the script
-Just run `python main.py` 
+Just run `python main.py`!
 
-you can run `ynab-transaction.py` and `amazon-transactions.py` directly to test things out and see what it sees.
+you can run `python ynab-transaction.py` and `python amazon-transactions.py` directly to test things out and see what it sees.
 
 ## How it works
 
