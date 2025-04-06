@@ -35,9 +35,9 @@ def get_amazon_transactions() -> List[TransactionWithOrderInfo]:
 
     return amazon_transaction_with_order_details
 
-def print_amazon_transactions(filled_transactions):
+def print_amazon_transactions(amazon_transaction_with_order_details):
 
-    for transaction in filled_transactions:
+    for transaction in amazon_transaction_with_order_details:
         info = transaction._asdict()
         for label, value in info.items():
             if isinstance(value, list):
