@@ -3,7 +3,7 @@ A program to annotate YNAB transactions with Amazon order info
 
 ## Setup/Prerequistes
 1. Have a YNAB and Amazon Account (thank you Captain Obvious)
-2. Create a Renaming Rule in YNAB (in the Manage Payees menu) to automatically rename any transactions containing "Amazon" to the payee you want to use to indicate that this transaction should be looked at. The default I chose is "Amazon - Need Memo"
+2. Create a Renaming Rule in YNAB (in the Manage Payees menu) to automatically rename any transactions containing "Amazon" to the payee you want to use to indicate that this transaction should be looked at. The default I chose is "Amazon - Needs Memo"
 3. Create a Payee to act as the payee to indicate that a transaction has already been processed and does not need to be processed again. Create this payee before running this script
 4. Create the config file
    1. Make a copy of `config-template.py` named `config.py`
