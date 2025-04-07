@@ -1,3 +1,4 @@
+# ruff: noqa: D212, D415
 from typing import Annotated
 
 from rich.console import Console
@@ -10,10 +11,10 @@ from .main import process_transactions
 from .settings import settings
 from .ynab_transactions import get_ynab_transactions
 
-cli = Typer()
+cli = Typer(rich_markup_mode="rich")
 
 
-@cli.command()
+@cli.command("print-ynab")
 def print_ynab_transactions(
     api_key: Annotated[
         str | None,
@@ -30,15 +31,10 @@ def print_ynab_transactions(
         ),
     ],
 ) -> None:
-    """Prints YNAB transactions.
+    """
+    [bold cyan]Prints YNAB transactions.[/]
 
-    All arguments will use defaults in .env file if not provided.
-
-    Arguments:
-        api_key: YNAB API key.
-        budget_id: YNAB Budget ID.
-        needs_memo_payee: YNAB Payee Name to be processed.
-        completed_payee: YNAB Payee Name completed.
+    [yellow i]All arguments will use defaults in .env file if not provided.[/]
     """
     console = Console()
 
@@ -68,7 +64,7 @@ def print_ynab_transactions(
     console.print(table)
 
 
-@cli.command()
+@cli.command("print-amazon")
 def print_amazon_transactions(
     user_email: Annotated[
         str,
@@ -89,15 +85,10 @@ def print_amazon_transactions(
         int, Option("-d", "--days", help="Days of transactions to retrieve")
     ] = 31,
 ) -> None:
-    """Prints Amazon transactions.
+    """
+    [bold cyan]Prints Amazon transactions.[/]
 
-    All required arguments will use defaults in .env file if not provided.
-
-    Arguments:
-        user_email: Amazon username.
-        user_password: Amazon password.
-        order_years: Order years; leave empty for current year.
-        transaction_days: Days of transactions to retrieve.
+    [yellow i]All required arguments will use defaults in .env file if not provided.[/]
     """
     console = Console()
 
@@ -167,15 +158,10 @@ def ynamazon(
         ),
     ],
 ) -> None:
-    """Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos.
+    """
+    [bold cyan]Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos.[/]
 
-    All required arguments will use defaults in .env file if not provided.
-
-    Arguments:
-        ynab_api_key: YNAB API key.
-        ynab_budget_id: YNAB Budget ID.
-        amazon_user: Amazon username.
-        amazon_password: Amazon password.
+    [yellow i]All required arguments will use defaults in .env file if not provided.[/]
     """
     process_transactions(
         amazon_config=AmazonConfig(username=amazon_user, password=amazon_password),  # type: ignore[arg-type]

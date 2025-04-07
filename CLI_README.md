@@ -1,9 +1,9 @@
-# `YNAmazon`
+# `yna`
 
 **Usage**:
 
 ```console
-$ YNAmazon [OPTIONS] COMMAND [ARGS]...
+$ yna [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options**:
@@ -14,26 +14,20 @@ $ YNAmazon [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `print-ynab-transactions`: Prints YNAB transactions.
-* `print-amazon-transactions`: Prints Amazon transactions.
-* `ynamazon`: Match YNAB transactions to Amazon...
+* `print-ynab`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints YNAB transactions.</span>
+* `print-amazon`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints Amazon transactions.</span>
+* `ynamazon`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Match YNAB transactions to...</span>
 
-## `YNAmazon print-ynab-transactions`
+## `yna print-ynab`
 
-Prints YNAB transactions.
+<span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints YNAB transactions.</span>
 
-All arguments will use defaults in .env file if not provided.
-
-Arguments:
-    api_key: YNAB API key.
-    budget_id: YNAB Budget ID.
-    needs_memo_payee: YNAB Payee Name to be processed.
-    completed_payee: YNAB Payee Name completed.
+<span style="color: #808000; text-decoration-color: #808000; font-style: italic">All arguments will use defaults in .env file if not provided.</span>
 
 **Usage**:
 
 ```console
-$ YNAmazon print-ynab-transactions [OPTIONS] [API_KEY] [BUDGET_ID]
+$ yna print-ynab [OPTIONS] [API_KEY] [BUDGET_ID]
 ```
 
 **Arguments**:
@@ -45,22 +39,16 @@ $ YNAmazon print-ynab-transactions [OPTIONS] [API_KEY] [BUDGET_ID]
 
 * `--help`: Show this message and exit.
 
-## `YNAmazon print-amazon-transactions`
+## `yna print-amazon`
 
-Prints Amazon transactions.
+<span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints Amazon transactions.</span>
 
-All required arguments will use defaults in .env file if not provided.
-
-Arguments:
-    user_email: Amazon username.
-    user_password: Amazon password.
-    order_years: Order years; leave empty for current year.
-    transaction_days: Days of transactions to retrieve.
+<span style="color: #808000; text-decoration-color: #808000; font-style: italic">All required arguments will use defaults in .env file if not provided.</span>
 
 **Usage**:
 
 ```console
-$ YNAmazon print-amazon-transactions [OPTIONS] [USER_EMAIL] [USER_PASSWORD]
+$ yna print-amazon [OPTIONS] [USER_EMAIL] [USER_PASSWORD]
 ```
 
 **Arguments**:
@@ -74,22 +62,16 @@ $ YNAmazon print-amazon-transactions [OPTIONS] [USER_EMAIL] [USER_PASSWORD]
 * `-d, --days INTEGER`: Days of transactions to retrieve  [default: 31]
 * `--help`: Show this message and exit.
 
-## `YNAmazon ynamazon`
+## `yna ynamazon`
 
-Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos.
+<span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos.</span>
 
-All required arguments will use defaults in .env file if not provided.
-
-Arguments:
-    ynab_api_key: YNAB API key.
-    ynab_budget_id: YNAB Budget ID.
-    amazon_user: Amazon username.
-    amazon_password: Amazon password.
+<span style="color: #808000; text-decoration-color: #808000; font-style: italic">All required arguments will use defaults in .env file if not provided.</span>
 
 **Usage**:
 
 ```console
-$ YNAmazon ynamazon [OPTIONS] [YNAB_API_KEY] [YNAB_BUDGET_ID] [AMAZON_USER] [AMAZON_PASSWORD]
+$ yna ynamazon [OPTIONS] [YNAB_API_KEY] [YNAB_BUDGET_ID] [AMAZON_USER] [AMAZON_PASSWORD]
 ```
 
 **Arguments**:
