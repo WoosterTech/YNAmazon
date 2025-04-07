@@ -1,31 +1,37 @@
 import amazon_transactions
 import ynab_transactions
-from typing import List
 from amazon_transactions import TransactionWithOrderInfo
 
 
 def process_transactions() -> None:
+    """Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos."""
     ynab_trans, amazon_with_memo_payee = ynab_transactions.get_ynab_transactions()
-    print('please wait... (amazon transactions are being fetched, which takes a while)')
-    amazon_trans: List[TransactionWithOrderInfo] = amazon_transactions.get_amazon_transactions()
+    print("please wait... (amazon transactions are being fetched, which takes a while)")
+    amazon_trans: list[TransactionWithOrderInfo] = (
+        amazon_transactions.get_amazon_transactions()
+    )
     if not ynab_trans:
-        print('No matching Transactions found in YNAB. Exiting.')
+        print("No matching Transactions found in YNAB. Exiting.")
         return
-    print('\n\n\nStarting to look for matching transactions...\n')
+    print("\n\n\nStarting to look for matching transactions...\n")
     for ynab_tran in ynab_trans:
         print(
-            f"\n\nLooking for an Amazon Transaction that matches this YNAB transaction: {ynab_tran.var_date} ${ynab_tran.amount/-1000:.2f}"
+            f"\n\nLooking for an Amazon Transaction that matches this YNAB transaction: {ynab_tran.var_date} ${ynab_tran.amount / -1000:.2f}"
         )
-        amazon_tran: TransactionWithOrderInfo | None = find_matching_amazon_transaction(amazon_trans=amazon_trans, amount=ynab_tran.amount)
+        amazon_tran: TransactionWithOrderInfo | None = find_matching_amazon_transaction(
+            amazon_trans=amazon_trans, amount=ynab_tran.amount
+        )
         if not amazon_tran:
-            print(f"**** Could not find a matching Amazon Transaction!")
+            print("**** Could not find a matching Amazon Transaction!")
             continue
-        print(f"Found a matching Amazon Transaction!")
-        print(f"Matching Amazon Transaction: {amazon_tran.completed_date} ${amazon_tran.transaction_total/1000:.2f}")
+        print("Found a matching Amazon Transaction!")
+        print(
+            f"Matching Amazon Transaction: {amazon_tran.completed_date} ${amazon_tran.transaction_total / 1000:.2f}"
+        )
 
         memo: str = ""
         if amazon_tran.transaction_total != amazon_tran.order_total:
-            memo += f"-This transaction doesn't represent the entire order. The order total is ${amazon_tran.order_total/1000:.2f}-    \n\n"
+            memo += f"-This transaction doesn't represent the entire order. The order total is ${amazon_tran.order_total / 1000:.2f}-    \n\n"
         if len(amazon_tran.item_names) > 1:
             for i, item in enumerate(amazon_tran.item_names, start=1):
                 memo += f"{i}. {item}  \n"
@@ -33,23 +39,41 @@ def process_transactions() -> None:
             memo += amazon_tran.item_names[0] + "  \n"
 
         memo += amazon_tran.order_link
-            
-        print('\nMemo:')
+
+        print("\nMemo:")
         print(memo)
 
-        no: str = input('\nupdate transaction? press enter to continue, type anything and press enter to skip...')
+        no: str = input(
+            "\nupdate transaction? press enter to continue, type anything and press enter to skip..."
+        )
         if no:
-            print('skipping...\n\n')
+            print("skipping...\n\n")
         else:
-            print('updating...')
-            ynab_transactions.update_ynab_transaction(transaction=ynab_tran, memo=memo, payee_id=amazon_with_memo_payee.id)
-            print('\n\n')
+            print("updating...")
+            ynab_transactions.update_ynab_transaction(
+                transaction=ynab_tran, memo=memo, payee_id=amazon_with_memo_payee.id
+            )
+            print("\n\n")
 
-def find_matching_amazon_transaction(amazon_trans, amount) -> TransactionWithOrderInfo | None:
+
+def find_matching_amazon_transaction(
+    amazon_trans: list[TransactionWithOrderInfo],
+    amount: int
+) -> TransactionWithOrderInfo | None:
+    """Given an amount, locate a matching Amazon transaction.
+
+    Args:
+        amazon_trans (list[TransactionWithOrderInfo]): A list of Amazon transactions
+        amount (int): An amount to match
+
+    Returns:
+        TransactionWithOrderInfo | None: A matched transaction or None if no match
+    """
     amount = amount * -1
     for a_tran in amazon_trans:
         if a_tran.transaction_total == amount:
             return a_tran
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     process_transactions()
