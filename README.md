@@ -26,6 +26,7 @@ A program to annotate YNAB transactions with Amazon order info
         AMAZON_PASSWORD=your-amazon-password
         ```
 6. **Install Dependencies**:
+   - Install `uv` ([instructions](https://github.com/astral-sh/uv?tab=readme-ov-file#installation)) if needed
    - Run the following command to install the required dependencies:
      ```bash
      uv sync
