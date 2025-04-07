@@ -33,7 +33,7 @@ def process_transactions() -> None:
         elif len(amazon_tran.item_names) == 1:
             memo += amazon_tran.item_names[0] + "  \n"
 
-        memo += _formatted_link("Link", amazon_tran.order_link)
+        memo += _formatted_link(f"Order #{amazon_tran.order_number}", amazon_tran.order_link)
 
         print('\nMemo:')
         print(memo)
