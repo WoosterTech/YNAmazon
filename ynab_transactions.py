@@ -1,4 +1,3 @@
-# ruff: noqa: E501
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -72,7 +71,7 @@ def get_transactions_by_payee(
 def get_ynab_transactions(
     configuration: ynab.Configuration | None = None,
     budget_id: str | None = None,
-) -> tuple[list["HybridTransaction"], "Payee"] | None:
+) -> tuple[list["HybridTransaction"] | None, "Payee" | None]:
     """Returns a tuple of YNAB transactions and the payee.
 
     Args:
@@ -100,7 +99,7 @@ def get_ynab_transactions(
     )
     if not (amazon_needs_memo_payee and amazon_with_memo_payee):
         rprint("[bold red]Unable to find payees, exiting.[/]")
-        return None, None  # returning tuple of None values to maintain type consistency
+        return None, None
 
     ynab_transactions = get_transactions_by_payee(
         budget_id=budget_id, payee=amazon_needs_memo_payee

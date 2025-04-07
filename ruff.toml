@@ -2,7 +2,7 @@ target-version = "py311"
 
 [lint]
 extend-select = ["B", "C90", "D", "RUF", "UP"]
-extend-ignore = ["D100"]
+extend-ignore = ["D100", "E501"]
 exclude = ["__about__.py"]
 
 [lint.flake8-type-checking]
