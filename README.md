@@ -2,27 +2,50 @@
 A program to annotate YNAB transactions with Amazon order info
 
 ## Setup/Prerequisites
-1. Have a YNAB and Amazon Account (thank you Captain Obvious)
-2. Create a Renaming Rule in YNAB (in the Manage Payees menu) to automatically rename any transactions containing "Amazon" to the payee you want to use to indicate that this transaction should be looked at. The default I chose is "Amazon - Needs Memo"
-3. Create a Payee to act as the payee to indicate that a transaction has already been processed and does not need to be processed again. Create this payee before running this script.
-4. Create a `.env` file to store your environment variables:
-   1. Make a copy of `.env-template` named `.env`.
-   2. Add the following variables to the `.env` file:
-      - `YNAB_API_KEY`: Your YNAB API key, which can be found by going to your YNAB Account Settings and clicking on Developer Settings.
-      - `YNAB_BUDGET_ID`: Your YNAB Budget ID, which can be found in the URL of your budget page.
-      - `YNAB_PAYEE_NAME_TO_BE_PROCESSED`: The payee name for transactions that need to be processed (e.g., "Amazon - Needs Memo").
-      - `YNAB_PAYEE_NAME_PROCESSING_COMPLETED`: The payee name for transactions that have been processed (e.g., "Amazon").
-      - `AMAZON_USER`: Your Amazon username (email).
-      - `AMAZON_PASSWORD`: Your Amazon password.
-5. Install dependencies by running:
-   ```bash
-   uv sync
-   ```
+1. **YNAB and Amazon Accounts**: Ensure you have active accounts for both YNAB and Amazon.
+2. **Create a Renaming Rule in YNAB**: 
+   - In YNAB, go to the "Manage Payees" menu.
+   - Create a rule to automatically rename any transactions containing "Amazon" to the payee name you want to use to indicate that the transaction needs to be processed. The default is `"Amazon - Needs Memo"`.
+3. **Create a Processed Payee in YNAB**:
+   - Create a payee in YNAB to indicate that a transaction has already been processed. For example, `"Amazon"`.
+4. **Install Toolkit for YNAB (Optional)**:
+   - Install the [Toolkit for YNAB](https://toolkitforynab.com/) browser extension.
+   - Enable the following features for the best experience:
+     - "Enable Markdown in Memos"
+     - "Hyperlinks in the memo field"
+5. **Set Up Environment Variables**:
+   - Create a `.env` file to securely store your credentials and configuration:
+     1. Make a copy of `.env-template` and rename it to `.env`.
+     2. Add the following variables to the `.env` file:
+        ```plaintext
+        YNAB_API_KEY=your-ynab-api-key
+        YNAB_BUDGET_ID=your-budget-id
+        YNAB_PAYEE_NAME_TO_BE_PROCESSED="Amazon - Needs Memo"
+        YNAB_PAYEE_NAME_PROCESSING_COMPLETED=Amazon
+        AMAZON_USER=your-amazon-email
+        AMAZON_PASSWORD=your-amazon-password
+        ```
+6. **Install Dependencies**:
+   - Run the following command to install the required dependencies:
+     ```bash
+     uv sync
+     ```
 
 ## Running the script
-Just run `python main.py`
+Just run 
+```bash
+python main.py
+```
 
-you can run `python ynab-transaction.py` and `python amazon-transactions.py` directly to test things out and see what it sees.
+You can run 
+```bash 
+python ynab-transaction.py
+``` 
+and
+``` bash
+python amazon-transactions.py
+```
+directly to test things out and see what it sees.
 
 ## How it works
 This program automates the process of annotating YNAB transactions with detailed Amazon order information. Here's how it works:
@@ -46,8 +69,32 @@ The script relies on the `amazon-orders` library for Amazon data and the YNAB AP
 
 There is an important distinction between an Amazon order and an Amazon transaction. When you check out, that is a single order. Often, one order will be fulfilled together, creating a single transaction. However, some orders will generate more than one transaction, which will show up in YNAB separately. This program handles this by adding the same memo to each transaction of that order, which includes a note that the transaction doesn't reflect the entire order.
 
+### Sample Memo Format
+
+For a transaction for an order with a single item, the memo format is as minimal as possible, for example:
+``` plaintext
+60 Gallon Barrel of Maple Syrup
+https://www.amazon.com/gp/css/summary/edit.html?orderID=123-1234567-7654321
+```
+For orders with more than one item, they are listed in a numbered markdown list:
+``` plaintext
+1. Dog Costume
+2. Facepaint
+3. Popcorn-shaped Purse
+https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
+```
+If Amazon splits the order into multiple transactions, this program will detect that and warn you in the memo. In this case, YNAB will label all transactions for that order with the same memo. Unfortunately, it is not possible to easily tell which items belong to what transactions, so you may have to click on the link and figure it out for yourself:
+``` plaintext
+-This transaction doesn't represent the entire order. The order total is $99.99-
+
+1. Dog Costume
+2. Facepaint
+3. Popcorn-shaped Purse
+https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
+```
+
 ## Limitations
-This script probably won't be able to handle weird edge cases. The amazon-orders library is only able to handle amazon.com and will not pull data from other countries' amazon. Any transactions in the amazon transaction history that don't relate to an amazon.com order will be ignored. As with any tool that relies on web scraping, things can change at any time and it is up to the maintainers of the amazon-orders library to fix things.
+This script probably won't be able to handle weird edge cases. The amazon-orders library is only able to handle amazon.com and will not pull data from other countries' amazon sites. Any transactions in the amazon transaction history that don't relate to an amazon.com order will be ignored. As with any tool that relies on web scraping, things can change at any time and it is up to the maintainers of the amazon-orders library to fix things.
 
 ## Disclaimer
 This script requires your Amazon and YNAB credentials. Use at your own risk and ensure you store your credentials securely. The author is not responsible for any misuse or data breaches.
