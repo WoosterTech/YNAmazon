@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     ynab_payee_name_to_be_processed: str = "Amazon - Needs Memo"
     ynab_payee_name_processing_completed: str = "Amazon"
+    ynab_use_markdown: bool = False
 
 
 settings = Settings()  # type: ignore[call-arg]

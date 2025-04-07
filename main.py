@@ -3,6 +3,7 @@ import ynab_transactions
 from typing import List
 from amazon_transactions import TransactionWithOrderInfo
 
+from settings import settings
 
 def process_transactions() -> None:
     ynab_trans, amazon_with_memo_payee = ynab_transactions.get_ynab_transactions()
@@ -32,8 +33,8 @@ def process_transactions() -> None:
         elif len(amazon_tran.item_names) == 1:
             memo += amazon_tran.item_names[0] + "  \n"
 
-        memo += amazon_tran.order_link
-            
+        memo += formatted_link("Link", amazon_tran.order_link)
+
         print('\nMemo:')
         print(memo)
 
@@ -44,6 +45,16 @@ def process_transactions() -> None:
             print('updating...')
             ynab_transactions.update_ynab_transaction(transaction=ynab_tran, memo=memo, payee_id=amazon_with_memo_payee.id)
             print('\n\n')
+
+def formatted_link(
+    title: str,
+    url: str
+) -> str:
+
+    if settings.ynab_use_markdown:
+        return f"[{title}]({url})"
+
+    return url
 
 def find_matching_amazon_transaction(amazon_trans, amount) -> TransactionWithOrderInfo | None:
     amount = amount * -1
