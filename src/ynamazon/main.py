@@ -5,15 +5,15 @@ from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.prompt import Confirm
 
-from ynamazon.amazon_transactions import (
+from .amazon_transactions import (
     AmazonConfig,
     get_amazon_transactions,
     locate_amazon_transaction_by_amount,
 )
-from ynamazon.exceptions import YnabSetupError
-from ynamazon.settings import settings
-from ynamazon.ynab_transactions import default_configuration as ynab_configuration
-from ynamazon.ynab_transactions import (
+from .exceptions import YnabSetupError
+from .settings import settings
+from .ynab_transactions import default_configuration as ynab_configuration
+from .ynab_transactions import (
     get_ynab_transactions,
     markdown_formatted_link,
     markdown_formatted_title,

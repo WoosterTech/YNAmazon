@@ -14,8 +14,8 @@ from pydantic import AnyUrl, BaseModel, EmailStr, Field, SecretStr, field_valida
 from rich import print as rprint
 from rich.table import Table
 
-from ynamazon.settings import settings
-from ynamazon.types_pydantic import AmazonItemType
+from .settings import settings
+from .types_pydantic import AmazonItemType
 
 
 class AmazonTransactionWithOrderInfo(BaseModel):

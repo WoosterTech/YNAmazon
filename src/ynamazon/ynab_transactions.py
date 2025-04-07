@@ -12,8 +12,8 @@ from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 
-from ynamazon.exceptions import YnabSetupError
-from ynamazon.settings import settings
+from .exceptions import YnabSetupError
+from .settings import settings
 
 default_configuration = Configuration(
     access_token=settings.ynab_api_key.get_secret_value()

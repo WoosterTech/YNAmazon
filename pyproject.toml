@@ -42,3 +42,6 @@ build-backend = "hatchling.build"
 [[tool.mypy.overrides]]
 module= ["amazonorders.*"]
 ignore_missing_imports = true
+
+# [tool.deptry]
+# known_first_party = ["ynamazon"]

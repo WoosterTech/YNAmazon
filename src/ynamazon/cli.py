@@ -1,15 +1,14 @@
 from typing import Annotated
 
-from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
 from typer import Argument, Option, Typer
 from ynab import Configuration
 
-from ynamazon.amazon_transactions import AmazonConfig, get_amazon_transactions
-from ynamazon.main import process_transactions
-from ynamazon.settings import settings
-from ynamazon.ynab_transactions import get_ynab_transactions
+from .amazon_transactions import AmazonConfig, get_amazon_transactions
+from .main import process_transactions
+from .settings import settings
+from .ynab_transactions import get_ynab_transactions
 
 cli = Typer()
 
@@ -178,7 +177,6 @@ def ynamazon(
         amazon_user: Amazon username.
         amazon_password: Amazon password.
     """
-    rprint(f"[bold yellow]Using Markdown?: {settings.ynab_use_markdown}[/]")
     process_transactions(
         amazon_config=AmazonConfig(username=amazon_user, password=amazon_password),  # type: ignore[arg-type]
         ynab_config=Configuration(access_token=ynab_api_key),
