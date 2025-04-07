@@ -33,7 +33,7 @@ def process_transactions() -> None:
         elif len(amazon_tran.item_names) == 1:
             memo += amazon_tran.item_names[0] + "  \n"
 
-        memo += formatted_link("Link", amazon_tran.order_link)
+        memo += _formatted_link("Link", amazon_tran.order_link)
 
         print('\nMemo:')
         print(memo)
@@ -46,10 +46,19 @@ def process_transactions() -> None:
             ynab_transactions.update_ynab_transaction(transaction=ynab_tran, memo=memo, payee_id=amazon_with_memo_payee.id)
             print('\n\n')
 
-def formatted_link(
+def _formatted_link(
     title: str,
     url: str
 ) -> str:
+    """Returns a link in markdown or raw format, dependent on ynab_use_markdown
+
+    Args:
+        title (str): The name for the link
+        url (str): The URL to link to
+
+    Returns:
+        str: A URL string suitable for injection into the memo
+    """
 
     if settings.ynab_use_markdown:
         return f"[{title}]({url})"
