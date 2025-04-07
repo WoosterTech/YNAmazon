@@ -57,8 +57,7 @@ def process_transactions() -> None:
 
 
 def find_matching_amazon_transaction(
-    amazon_trans: list[TransactionWithOrderInfo],
-    amount: int
+    amazon_trans: list[TransactionWithOrderInfo], amount: int
 ) -> TransactionWithOrderInfo | None:
     """Given an amount, locate a matching Amazon transaction.
 

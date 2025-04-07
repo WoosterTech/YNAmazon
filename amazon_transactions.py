@@ -65,7 +65,9 @@ def get_amazon_transactions() -> list[TransactionWithOrderInfo]:
     return amazon_transaction_with_order_details
 
 
-def print_amazon_transactions(amazon_transaction_with_order_details: list[TransactionWithOrderInfo]):
+def print_amazon_transactions(
+    amazon_transaction_with_order_details: list[TransactionWithOrderInfo],
+):
     """Prints a list of transactions to the screen for inspection.
 
     Args:
