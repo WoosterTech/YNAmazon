@@ -1,5 +1,12 @@
-from typing import Any, List
+# ruff: noqa: E501
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, TypeVar
+
 import ynab
+from loguru import logger
+from rich import print as rprint
+from rich.table import Table
+from ynab.models.existing_transaction import ExistingTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 
@@ -125,20 +132,52 @@ def update_ynab_transaction(
     data.transaction.memo = memo
     data.transaction.payee_id = payee_id
     with ynab.ApiClient(configuration=configuration) as api_client:
-        ynab.TransactionsApi(api_client=api_client).update_transaction(budget_id=my_budget_id, transaction_id=transaction.id, data=data)
+        _ = ynab.TransactionsApi(api_client=api_client).update_transaction(
+            budget_id=budget_id, transaction_id=transaction.id, data=data
+        )
 
 
-def find_item_by_attribute(items, attribute, value) -> Any | None:
+_T = TypeVar("_T", bound=Payee)
+
+
+def find_item_by_attribute(
+    items: Iterable[_T], attribute: str, value: Any
+) -> _T | None:
+    """Finds an item in a list by its attribute value.
+
+    Args:
+        items (Iterable[_T]): The list of items to search.
+        attribute (str): The attribute name to search for.
+        value (Any): The value to match.
+
+    Returns:
+        _T | None: The found item or None if not found.
+    """
     for item in items:
         item_value = getattr(item, attribute)
         if item_value == value:
-            print(f"found {attribute}: {item_value}")
+            logger.debug(f"found {attribute}: {item_value}")
             return item
 
-def print_ynab_transactions(transactions) -> None:
-    print(f"found {len(transactions)} transactions with the payee name of {config.ynab_payee_name_to_be_processed}")
+    return None
+
+
+def print_ynab_transactions(transactions: list["HybridTransaction"]) -> None:
+    """Prints YNAB transactions in a table format.
+
+    Args:
+        transactions (list[HybridTransaction]): The list of transactions to print.
+    """
+    rprint(f"found {len(transactions)} transactions")
+    table = Table(title="YNAB Transactions")
+    table.add_column("Date", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Amount", justify="right", style="green")
+
     for transaction in transactions:
-        print(f'{transaction.var_date}: ${transaction.amount/-1000:.2f}\n')
+        table.add_row(str(transaction.var_date), f"${transaction.amount / -1000:.2f}")
+
+    rprint(table)
+
 
 if __name__ == "__main__":
     ynab_transactions, _ = get_ynab_transactions()

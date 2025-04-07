@@ -1,0 +1,24 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.4
+    hooks:
+    -   id: ruff
+        args: [--fix]
+    -   id: ruff-format
+-   repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.6.12
+    hooks:
+    -   id: uv-lock
+    -   id: uv-export
+        args: [--quiet]
+-   repo: https://github.com/fpgmaas/deptry.git
+    rev: 0.23.0
+    hooks:
+    -   id: deptry
