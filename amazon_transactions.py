@@ -8,13 +8,14 @@ from amazonorders.orders import AmazonOrders
 from amazonorders.session import AmazonSession
 from amazonorders.transactions import AmazonTransactions
 
-import config
+# import config
+from settings import settings
 
 TransactionWithOrderInfo = namedtuple("TransactionWithOrderInfo", ['completed_date', 'transaction_total', 'order_total', 'order_number', 'order_link', 'item_names'])
 
 
 def get_amazon_transactions() -> List[TransactionWithOrderInfo]:
-    amazon_session = AmazonSession(username=config.amazon_user, password=config.amazon_password)
+    amazon_session = AmazonSession(username=settings.amazon_user, password=settings.amazon_password.get_secret_value())
     amazon_session.login()
 
     amazon_orders = AmazonOrders(amazon_session)

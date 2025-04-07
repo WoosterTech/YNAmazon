@@ -5,11 +5,11 @@ from amazon_transactions import TransactionWithOrderInfo
 
 
 def process_transactions() -> None:
-    print('please wait...')
     ynab_trans, amazon_with_memo_payee = ynab_transactions.get_ynab_transactions()
+    print('please wait... (amazon transactions are being fetched, which takes a while)')
     amazon_trans: List[TransactionWithOrderInfo] = amazon_transactions.get_amazon_transactions()
     if not ynab_trans:
-        print('No matching Transactions foound in YNAB. Exiting.')
+        print('No matching Transactions found in YNAB. Exiting.')
         return
     print('\n\n\nStarting to look for matching transactions...\n')
     for ynab_tran in ynab_trans:
@@ -37,7 +37,7 @@ def process_transactions() -> None:
         print('\nMemo:')
         print(memo)
 
-        no: str = input(prompt='\nupdate transaction? press enter to continue, type anything and press enter to skip...')
+        no: str = input('\nupdate transaction? press enter to continue, type anything and press enter to skip...')
         if no:
             print('skipping...\n\n')
         else:

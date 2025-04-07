@@ -1,18 +1,23 @@
 # YNAmazon
 A program to annotate YNAB transactions with Amazon order info
 
-## Setup/Prerequistes
+## Setup/Prerequisites
 1. Have a YNAB and Amazon Account (thank you Captain Obvious)
 2. Create a Renaming Rule in YNAB (in the Manage Payees menu) to automatically rename any transactions containing "Amazon" to the payee you want to use to indicate that this transaction should be looked at. The default I chose is "Amazon - Needs Memo"
-3. Create a Payee to act as the payee to indicate that a transaction has already been processed and does not need to be processed again. Create this payee before running this script
-4. Create the config file
-   1. Make a copy of `config-template.py` named `config.py`
-       - `config.py` is already in the `.gitignore`
-   2. Add the two payee names in the appropriate lines
-   3. Add your YNAB API key in the appropriate line. It can be found by going to your YNAB Account Settings and clicking on Developer Settings
-   4. Add your YNAB Budget ID. This can be found in the URL of your budget page 
-   5. Add your Amazon username (email) and password
-5. Run `pip install amazon-orders ynab` or `pip install -r requirements.txt` to install dependencies
+3. Create a Payee to act as the payee to indicate that a transaction has already been processed and does not need to be processed again. Create this payee before running this script.
+4. Create a `.env` file to store your environment variables:
+   1. Make a copy of `.env-template` named `.env`.
+   2. Add the following variables to the `.env` file:
+      - `YNAB_API_KEY`: Your YNAB API key, which can be found by going to your YNAB Account Settings and clicking on Developer Settings.
+      - `YNAB_BUDGET_ID`: Your YNAB Budget ID, which can be found in the URL of your budget page.
+      - `YNAB_PAYEE_NAME_TO_BE_PROCESSED`: The payee name for transactions that need to be processed (e.g., "Amazon - Needs Memo").
+      - `YNAB_PAYEE_NAME_PROCESSING_COMPLETED`: The payee name for transactions that have been processed (e.g., "Amazon").
+      - `AMAZON_USER`: Your Amazon username (email).
+      - `AMAZON_PASSWORD`: Your Amazon password.
+5. Install dependencies by running:
+   ```bash
+   uv sync
+   ```
 
 ## Running the script
 Just run `python main.py`

@@ -2,43 +2,126 @@ from typing import Any, List
 import ynab
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
-from ynab.models.hybrid_transaction import HybridTransaction
 
-import config
+from settings import settings
 
-configuration = ynab.Configuration(
-    access_token=config.ynab_api_key
+if TYPE_CHECKING:
+    from ynab.models.hybrid_transaction import HybridTransaction
+
+default_configuration = ynab.Configuration(
+    access_token=settings.ynab_api_key.get_secret_value()
 )
-my_budget_id = config.ynab_budget_id
+my_budget_id = settings.ynab_budget_id
+rprint(settings.amazon_user)
 
 
-def get_ynab_transactions() -> tuple[List[HybridTransaction], Payee]:
+def get_payees_by_budget(
+    configuration: ynab.Configuration | None = None,
+    budget_id: str | None = None,
+) -> list["Payee"]:
+    """Returns a list of payees by budget ID.
+
+    Args:
+        configuration (Configuration | None): The YNAB API configuration.
+        budget_id (str | None): The budget ID.
+
+    Returns:
+        list[Payee]: A list of payees.
+    """
+    configuration = configuration or default_configuration
+    budget_id = budget_id or my_budget_id.get_secret_value()
     with ynab.ApiClient(configuration=configuration) as api_client:
-        payees: List[Payee] = (
-            ynab.PayeesApi(api_client).get_payees(budget_id=my_budget_id).data.payees
-        )
-        print(f"Finding payees...")
-        amazon_needs_memo_payee: Payee = find_item_by_attribute(
-            items=payees, attribute="name", value=config.ynab_payee_name_to_be_processed
-        )
-        amazon_with_memo_payee: Payee = find_item_by_attribute(
-            items=payees, attribute="name", value=config.ynab_payee_name_processing_completed
-        )
-        if not (amazon_needs_memo_payee and amazon_with_memo_payee):
-            print('Unable to find payees, exiting.')
-            return None, None
+        response = ynab.PayeesApi(api_client).get_payees(budget_id=budget_id)
 
-        ynab_transactions: List[HybridTransaction] = (
-            ynab.TransactionsApi(api_client)
-            .get_transactions_by_payee(
-                budget_id=my_budget_id, payee_id=amazon_needs_memo_payee.id
-            )
-            .data.transactions
+    return response.data.payees
+
+
+def get_transactions_by_payee(
+    payee: Payee,
+    configuration: ynab.Configuration | None = None,
+    budget_id: str | None = None,
+) -> list["HybridTransaction"]:
+    """Returns a list of transactions by payee.
+
+    Args:
+        payee (Payee): The payee object.
+        configuration (Configuration | None): The YNAB API configuration.
+        budget_id (str | None): The budget ID.
+
+    Returns:
+        list[HybridTransaction]: A list of transactions.
+    """
+    configuration = configuration or default_configuration
+    budget_id = budget_id or my_budget_id.get_secret_value()
+    with ynab.ApiClient(configuration=configuration) as api_client:
+        response = ynab.TransactionsApi(api_client).get_transactions_by_payee(
+            budget_id=budget_id,
+            payee_id=payee.id,
         )
+
+    return response.data.transactions
+
+
+def get_ynab_transactions(
+    configuration: ynab.Configuration | None = None,
+    budget_id: str | None = None,
+) -> tuple[list["HybridTransaction"], "Payee"] | None:
+    """Returns a tuple of YNAB transactions and the payee.
+
+    Args:
+        configuration (Configuration | None): The YNAB API configuration.
+        budget_id (str | None): The budget ID.
+
+    Returns:
+        tuple[list[HybridTransaction], Payee] | None: A tuple of YNAB transactions and the payee.
+    """
+    configuration = configuration or default_configuration
+    budget_id = budget_id or my_budget_id.get_secret_value()
+
+    payees = get_payees_by_budget(configuration, budget_id)
+
+    rprint("Finding payees...")
+    amazon_needs_memo_payee = find_item_by_attribute(
+        items=payees,
+        attribute="name",
+        value=settings.ynab_payee_name_to_be_processed,
+    )
+    amazon_with_memo_payee = find_item_by_attribute(
+        items=payees,
+        attribute="name",
+        value=settings.ynab_payee_name_processing_completed,
+    )
+    if not (amazon_needs_memo_payee and amazon_with_memo_payee):
+        rprint("[bold red]Unable to find payees, exiting.[/]")
+        return None, None # returning tuple of None values to maintain type consistency
+
+    ynab_transactions = get_transactions_by_payee(
+        budget_id=budget_id, payee=amazon_needs_memo_payee
+    )
     return ynab_transactions, amazon_with_memo_payee
 
-def update_ynab_transaction(transaction, memo, payee_id) -> None:
-    data = PutTransactionWrapper(transaction=transaction.to_dict())
+
+def update_ynab_transaction(
+    transaction: "HybridTransaction",
+    memo: str,
+    payee_id: str,
+    configuration: ynab.Configuration | None = None,
+    budget_id: str | None = None,
+) -> None:
+    """Updates a YNAB transaction with the given memo and payee ID.
+
+    Args:
+        transaction (HybridTransaction): The transaction to update.
+        memo (str): The memo to set.
+        payee_id (str): The payee ID to set.
+        configuration (Configuration | None): The YNAB API configuration.
+        budget_id (str | None): The budget ID.
+    """
+    configuration = configuration or default_configuration
+    budget_id = budget_id or my_budget_id.get_secret_value()
+    data = PutTransactionWrapper(
+        transaction=ExistingTransaction.model_validate(transaction.to_dict())
+    )
     data.transaction.memo = memo
     data.transaction.payee_id = payee_id
     with ynab.ApiClient(configuration=configuration) as api_client:
@@ -58,4 +141,8 @@ def print_ynab_transactions(transactions) -> None:
         print(f'{transaction.var_date}: ${transaction.amount/-1000:.2f}\n')
 
 if __name__ == "__main__":
-    print_ynab_transactions(transactions=get_ynab_transactions()[0])
+    ynab_transactions, _ = get_ynab_transactions()
+    if not ynab_transactions:
+        rprint("[bold red]No transactions found.[/]")
+        exit(1)
+    print_ynab_transactions(transactions=ynab_transactions)
