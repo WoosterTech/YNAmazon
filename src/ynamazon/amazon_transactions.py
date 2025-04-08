@@ -204,7 +204,7 @@ def locate_amazon_transaction_by_amount(
         amount (int): An amount to match
 
     Returns:
-        TransactionWithOrderInfo | None: A matched transaction or None if no match
+        int | None: Index of matched transaction in `amazon_trans` or None if no match
     """
     amount = Decimal(amount)
     for idx, a_tran in enumerate(amazon_trans):
