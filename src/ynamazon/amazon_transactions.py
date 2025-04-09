@@ -23,7 +23,7 @@ class AmazonTransactionWithOrderInfo(BaseModel):
 
     completed_date: date
     transaction_total: Annotated[
-        Decimal, Field(help="Value is inverted, e.g. -10.00 -> 10.00")
+        Decimal, Field(description="Value is inverted, e.g. -10.00 -> 10.00")
     ]
     order_total: Decimal
     order_number: str
