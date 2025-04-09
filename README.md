@@ -22,6 +22,7 @@ A program to annotate YNAB transactions with Amazon order info
         YNAB_BUDGET_ID=your-budget-id
         YNAB_PAYEE_NAME_TO_BE_PROCESSED="Amazon - Needs Memo"
         YNAB_PAYEE_NAME_PROCESSING_COMPLETED=Amazon
+        YNAB_USE_MARKDOWN=true/false
         AMAZON_USER=your-amazon-email
         AMAZON_PASSWORD=your-amazon-password
         ```
