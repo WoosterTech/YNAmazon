@@ -89,7 +89,7 @@ def process_transactions(  # noqa: C901
         memo = MultiLineText()
         if amazon_tran.transaction_total != amazon_tran.order_total:
             memo.append(
-                f"-This transaction doesn't represent the entire order. The order total is ${amazon_tran.order_total / 1000:.2f}-"
+                f"-This transaction doesn't represent the entire order. The order total is ${amazon_tran.order_total:.2f}-"
             )
         if len(amazon_tran.items) > 1:
             memo.append("**Items**")
