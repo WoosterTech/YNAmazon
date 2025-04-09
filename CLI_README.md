@@ -17,6 +17,7 @@ $ yna [OPTIONS] COMMAND [ARGS]...
 * `print-ynab`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints YNAB transactions.</span>
 * `print-amazon`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Prints Amazon transactions.</span>
 * `ynamazon`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Match YNAB transactions to...</span>
+* `utils`: <span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Utility commands</span>
 
 ## `yna print-ynab`
 
@@ -83,4 +84,41 @@ $ yna ynamazon [OPTIONS] [YNAB_API_KEY] [YNAB_BUDGET_ID] [AMAZON_USER] [AMAZON_P
 
 **Options**:
 
+* `--help`: Show this message and exit.
+
+## `yna utils`
+
+<span style="color: #008080; text-decoration-color: #008080; font-weight: bold">Utility commands</span>
+
+**Usage**:
+
+```console
+$ yna utils [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `check-amazon-orders`: Check the Amazon orders repository...
+
+### `yna utils check-amazon-orders`
+
+Check the Amazon orders repository integration test status.
+
+**Usage**:
+
+```console
+$ yna utils check-amazon-orders [OPTIONS] [REPO_URL]
+```
+
+**Arguments**:
+
+* `[REPO_URL]`: [default: (dynamic)]
+
+**Options**:
+
+* `-f, --filename TEXT`: Name of the workflow file to check.  [default: integration.yml]
 * `--help`: Show this message and exit.

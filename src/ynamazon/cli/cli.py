@@ -9,12 +9,15 @@ from typer import Context
 from typer import run as typer_run
 from rich import print as rprint
 
-from .amazon_transactions import AmazonConfig, get_amazon_transactions
-from .main import process_transactions
-from .settings import settings
-from .ynab_transactions import get_ynab_transactions
+from ynamazon.amazon_transactions import AmazonConfig, get_amazon_transactions
+from ynamazon.main import process_transactions
+from ynamazon.settings import settings
+from ynamazon.ynab_transactions import get_ynab_transactions
+
+from . import utils
 
 cli = Typer(rich_markup_mode="rich")
+cli.add_typer(utils.app, name="utils", help="[bold cyan]Utility commands[/]")
 
 
 @cli.command("print-ynab")
