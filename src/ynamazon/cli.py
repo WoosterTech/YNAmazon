@@ -1,4 +1,5 @@
 # ruff: noqa: D212, D415
+import sys
 from typing import Annotated
 
 from rich.console import Console
@@ -168,3 +169,14 @@ def ynamazon(
         ynab_config=Configuration(access_token=ynab_api_key),
         budget_id=ynab_budget_id,
     )
+
+
+@cli.callback(invoke_without_command=True)
+def yna_callback() -> None:
+    if len(sys.argv) == 1:
+        ynamazon(
+            ynab_api_key=settings.ynab_api_key.get_secret_value(),
+            ynab_budget_id=settings.ynab_budget_id.get_secret_value(),
+            amazon_user=settings.amazon_user,
+            amazon_password=settings.amazon_password.get_secret_value(),
+        )  # run with .arg values only, if you need to pass in other values, use `yna ynamazon [args]` instead
