@@ -1,29 +1,54 @@
-# ruff: noqa: E501
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, TypeVar
+from decimal import Decimal
+from typing import Any, TypeVar
 
-import ynab
 from loguru import logger
+from pydantic import AnyUrl
 from rich import print as rprint
 from rich.table import Table
+from ynab import ApiClient, Configuration, PayeesApi, TransactionsApi
 from ynab.models.existing_transaction import ExistingTransaction
+from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 
-from settings import settings
+from .exceptions import YnabSetupError
+from .settings import settings
 
-if TYPE_CHECKING:
-    from ynab.models.hybrid_transaction import HybridTransaction
-
-default_configuration = ynab.Configuration(
+default_configuration = Configuration(
     access_token=settings.ynab_api_key.get_secret_value()
 )
 my_budget_id = settings.ynab_budget_id
-rprint(settings.amazon_user)
+
+
+class TempYnabTransaction(HybridTransaction):
+    """Temporary YNAB transaction."""
+
+    @property
+    def amount_decimal(self) -> Decimal:
+        """Returns the amount in currency."""
+        return self.amount / Decimal("1000")
+
+
+def translate_hybrid_to_temp(
+    transactions: list["HybridTransaction"],
+) -> list[TempYnabTransaction]:
+    """Converts a list of YNAB transactions to temporary YNAB transactions.
+
+    Args:
+        transactions (list[HybridTransaction]): The list of YNAB transactions.
+
+    Returns:
+        list[TempYnabTransaction]: The list of temporary YNAB transactions.
+    """
+    return [
+        TempYnabTransaction.model_validate(transaction.model_dump())
+        for transaction in transactions
+    ]
 
 
 def get_payees_by_budget(
-    configuration: ynab.Configuration | None = None,
+    configuration: Configuration | None = None,
     budget_id: str | None = None,
 ) -> list["Payee"]:
     """Returns a list of payees by budget ID.
@@ -37,17 +62,17 @@ def get_payees_by_budget(
     """
     configuration = configuration or default_configuration
     budget_id = budget_id or my_budget_id.get_secret_value()
-    with ynab.ApiClient(configuration=configuration) as api_client:
-        response = ynab.PayeesApi(api_client).get_payees(budget_id=budget_id)
+    with ApiClient(configuration=configuration) as api_client:
+        response = PayeesApi(api_client).get_payees(budget_id=budget_id)
 
     return response.data.payees
 
 
 def get_transactions_by_payee(
     payee: Payee,
-    configuration: ynab.Configuration | None = None,
+    configuration: Configuration | None = None,
     budget_id: str | None = None,
-) -> list["HybridTransaction"]:
+) -> list[TempYnabTransaction]:
     """Returns a list of transactions by payee.
 
     Args:
@@ -56,23 +81,23 @@ def get_transactions_by_payee(
         budget_id (str | None): The budget ID.
 
     Returns:
-        list[HybridTransaction]: A list of transactions.
+        list[TempYnabTransaction]: A list of transactions.
     """
     configuration = configuration or default_configuration
     budget_id = budget_id or my_budget_id.get_secret_value()
-    with ynab.ApiClient(configuration=configuration) as api_client:
-        response = ynab.TransactionsApi(api_client).get_transactions_by_payee(
+    with ApiClient(configuration=configuration) as api_client:
+        response = TransactionsApi(api_client).get_transactions_by_payee(
             budget_id=budget_id,
             payee_id=payee.id,
         )
 
-    return response.data.transactions
+    return translate_hybrid_to_temp(response.data.transactions)
 
 
 def get_ynab_transactions(
-    configuration: ynab.Configuration | None = None,
+    configuration: Configuration | None = None,
     budget_id: str | None = None,
-) -> tuple[list["HybridTransaction"], "Payee"] | None:
+) -> tuple[list[TempYnabTransaction], "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
     Args:
@@ -81,6 +106,9 @@ def get_ynab_transactions(
 
     Returns:
         tuple[list[HybridTransaction], Payee] | None: A tuple of YNAB transactions and the payee.
+
+    Raises:
+        YnabSetupError: If the payees are not found in YNAB.
     """
     configuration = configuration or default_configuration
     budget_id = budget_id or my_budget_id.get_secret_value()
@@ -98,13 +126,19 @@ def get_ynab_transactions(
         attribute="name",
         value=settings.ynab_payee_name_processing_completed,
     )
-    if not (amazon_needs_memo_payee and amazon_with_memo_payee):
-        rprint("[bold red]Unable to find payees, exiting.[/]")
-        return None, None  # returning tuple of None values to maintain type consistency
+    if amazon_needs_memo_payee is None:
+        raise YnabSetupError(
+            f"Payee '{settings.ynab_payee_name_to_be_processed}' not found in YNAB."
+        )
+    if amazon_with_memo_payee is None:
+        raise YnabSetupError(
+            f"Payee '{settings.ynab_payee_name_processing_completed}' not found in YNAB."
+        )
 
     ynab_transactions = get_transactions_by_payee(
         budget_id=budget_id, payee=amazon_needs_memo_payee
     )
+
     return ynab_transactions, amazon_with_memo_payee
 
 
@@ -112,7 +146,7 @@ def update_ynab_transaction(
     transaction: "HybridTransaction",
     memo: str,
     payee_id: str,
-    configuration: ynab.Configuration | None = None,
+    configuration: Configuration | None = None,
     budget_id: str | None = None,
 ) -> None:
     """Updates a YNAB transaction with the given memo and payee ID.
@@ -131,8 +165,8 @@ def update_ynab_transaction(
     )
     data.transaction.memo = memo
     data.transaction.payee_id = payee_id
-    with ynab.ApiClient(configuration=configuration) as api_client:
-        _ = ynab.TransactionsApi(api_client=api_client).update_transaction(
+    with ApiClient(configuration=configuration) as api_client:
+        _ = TransactionsApi(api_client=api_client).update_transaction(
             budget_id=budget_id, transaction_id=transaction.id, data=data
         )
 
@@ -153,16 +187,18 @@ def find_item_by_attribute(
     Returns:
         _T | None: The found item or None if not found.
     """
-    for item in items:
-        item_value = getattr(item, attribute)
-        if item_value == value:
-            logger.debug(f"found {attribute}: {item_value}")
-            return item
+    item_list = [item for item in items if getattr(item, attribute) == value]
+    if not item_list:
+        return None
+    if len(item_list) > 1:
+        logger.warning(
+            f"Multiple items found with {attribute} = {value}. Returning the first one."
+        )
 
-    return None
+    return item_list[0]
 
 
-def print_ynab_transactions(transactions: list["HybridTransaction"]) -> None:
+def print_ynab_transactions(transactions: list[TempYnabTransaction]) -> None:
     """Prints YNAB transactions in a table format.
 
     Args:
@@ -174,9 +210,44 @@ def print_ynab_transactions(transactions: list["HybridTransaction"]) -> None:
     table.add_column("Amount", justify="right", style="green")
 
     for transaction in transactions:
-        table.add_row(str(transaction.var_date), f"${transaction.amount / -1000:.2f}")
+        table.add_row(str(transaction.var_date), f"${-transaction.amount_decimal:.2f}")
 
     rprint(table)
+
+
+def markdown_formatted_title(title: str, url: str | AnyUrl) -> str:
+    """Returns a formatted item title in markdown or raw format, dependent on ynab_use_markdown.
+
+    Args:
+        title (str): The name for the item
+        url (str): The URL to link to
+
+    Returns:
+        str: A URL string suitable for injection into the memo
+    """
+    if settings.ynab_use_markdown:
+        return f"[{title}]({url})"
+
+    return title
+
+
+def markdown_formatted_link(title: str, url: str | AnyUrl) -> str:
+    """Returns a link in markdown or raw format, dependent on ynab_use_markdown.
+
+    Args:
+        title (str): The name for the link
+        url (str): The URL to link to
+
+    Returns:
+        str: A URL string suitable for injection into the memo
+    """
+    if settings.ynab_use_markdown:
+        return f"[{title}]({url})"
+
+    if isinstance(url, AnyUrl):
+        url = str(url)
+
+    return url
 
 
 if __name__ == "__main__":

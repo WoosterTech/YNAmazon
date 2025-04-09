@@ -32,21 +32,9 @@ A program to annotate YNAB transactions with Amazon order info
      uv sync
      ```
 
-## Running the script
-Just run
-```bash
-python main.py
-```
+## Use CLI
 
-You can run
-```bash
-python ynab-transaction.py
-```
-and
-``` bash
-python amazon-transactions.py
-```
-directly to test things out and see what it sees.
+[CLI Instructions](/CLI_README.md)
 
 ## How it works
 This program automates the process of annotating YNAB transactions with detailed Amazon order information. Here's how it works:
