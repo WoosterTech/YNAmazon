@@ -41,6 +41,10 @@ test = [
     "pytest-sugar>=1.0.0",
 ]
 
+[tool.pytest.ini_options]
+minversion = "6.0"
+python_files = ["test_*.py"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

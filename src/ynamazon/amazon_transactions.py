@@ -1,8 +1,6 @@
-# from collections import namedtuple
-from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Self
+from typing import Annotated, Union  # ,  Self  # not available python <3.11
 
 from amazonorders.entity.order import Order
 from amazonorders.entity.transaction import Transaction
@@ -36,10 +34,11 @@ class AmazonTransactionWithOrderInfo(BaseModel):
         """Inverts the value."""
         return -value
 
+    # TODO: when dropping support for python <3.11, use Self
     @classmethod
     def from_transaction_and_orders(
         cls, orders_dict: "dict[str, Order]", transaction: Transaction
-    ) -> Self:
+    ):
         """Creates an instance from an order and transactions."""
         order = orders_dict.get(transaction.order_number)
         if order is None:
@@ -74,14 +73,14 @@ class AmazonConfig(BaseModel):
 
 
 def get_amazon_transactions(
-    order_years: Sequence[int] | None = None,
+    order_years: Union[list[int], None] = None,
     transaction_days: int = 31,
-    configuration: AmazonConfig | None = None,
+    configuration: Union[AmazonConfig, None] = None,
 ) -> list[AmazonTransactionWithOrderInfo]:
     """Returns a list of transactions with order info.
 
     Args:
-        order_years (Sequence[int] | None): A sequence of years to fetch transactions for. `None` for the current year.
+        order_years (list[int] | None): A list of years to fetch transactions for. `None` for the current year.
         transaction_days (int): Number of days to fetch transactions for.
         configuration (AmazonConfig | None): Amazon configuration.
 
@@ -118,7 +117,7 @@ def get_amazon_transactions(
 
 
 def _fetch_amazon_order_history(
-    *, session: AmazonSession, years: Sequence[int] | None = None
+    *, session: AmazonSession, years: Union[list[int], None] = None
 ) -> list[Order]:
     """Returns a list of Amazon orders.
 
@@ -195,8 +194,8 @@ def _truncate_title(title: str, max_length: int = 20) -> str:
 
 
 def locate_amazon_transaction_by_amount(
-    amazon_trans: list[AmazonTransactionWithOrderInfo], amount: float | Decimal
-) -> int | None:
+    amazon_trans: list[AmazonTransactionWithOrderInfo], amount: Union[float, Decimal]
+) -> Union[int, None]:
     """Given an amount, locate a matching Amazon transaction.
 
     Args:

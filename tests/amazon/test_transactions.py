@@ -9,7 +9,9 @@ from amazonorders.entity.order import Order
 from amazonorders.session import AmazonSession
 from faker import Faker
 
-from src.ynamazon.amazon_transactions import _fetch_amazon_order_history
+from ynamazon.amazon_transactions import (  # type: ignore[import-untyped]
+    _fetch_amazon_order_history,
+)
 
 if TYPE_CHECKING:
     from amazonorders.orders import AmazonOrders
@@ -87,7 +89,7 @@ def side_effect(year, *, mock_orders: list[Order]) -> Order:
     return []
 
 
-@patch("src.ynamazon.amazon_transactions.AmazonOrders")
+@patch("ynamazon.amazon_transactions.AmazonOrders")
 def test_fetch_amazon_order_history_with_years(
     mock_amazon_orders: "AmazonOrders",
     mock_session: AmazonSession,
@@ -106,7 +108,7 @@ def test_fetch_amazon_order_history_with_years(
 
 
 @patch(
-    "src.ynamazon.amazon_transactions.AmazonOrders",
+    "ynamazon.amazon_transactions.AmazonOrders",
 )
 def test_fetch_amazon_order_history_no_years(
     mock_amazon_orders: "AmazonOrders",
@@ -118,7 +120,7 @@ def test_fetch_amazon_order_history_no_years(
 
     mock_current_year = 2023
 
-    with patch("src.ynamazon.amazon_transactions.date", autospec=True) as mock_date:
+    with patch("ynamazon.amazon_transactions.date", autospec=True) as mock_date:
         mock_date.today.return_value.year = mock_current_year
         result = _fetch_amazon_order_history(session=mock_session)
 
@@ -138,7 +140,7 @@ def test_fetch_amazon_order_history_unauthenticated_session():
 
 
 @patch(
-    "src.ynamazon.amazon_transactions.AmazonOrders",
+    "ynamazon.amazon_transactions.AmazonOrders",
 )
 def test_fetch_amazon_order_history_several_items(
     mock_amazon_orders: "AmazonOrders",

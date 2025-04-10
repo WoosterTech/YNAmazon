@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from decimal import Decimal
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from loguru import logger
 from pydantic import AnyUrl
@@ -48,8 +48,8 @@ def translate_hybrid_to_temp(
 
 
 def get_payees_by_budget(
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> list["Payee"]:
     """Returns a list of payees by budget ID.
 
@@ -70,8 +70,8 @@ def get_payees_by_budget(
 
 def get_transactions_by_payee(
     payee: Payee,
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> list[TempYnabTransaction]:
     """Returns a list of transactions by payee.
 
@@ -95,8 +95,8 @@ def get_transactions_by_payee(
 
 
 def get_ynab_transactions(
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> tuple[list[TempYnabTransaction], "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
@@ -146,8 +146,8 @@ def update_ynab_transaction(
     transaction: "HybridTransaction",
     memo: str,
     payee_id: str,
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> None:
     """Updates a YNAB transaction with the given memo and payee ID.
 
@@ -176,7 +176,7 @@ _T = TypeVar("_T", bound=Payee)
 
 def find_item_by_attribute(
     items: Iterable[_T], attribute: str, value: Any
-) -> _T | None:
+) -> Union[_T, None]:
     """Finds an item in a list by its attribute value.
 
     Args:
@@ -215,7 +215,7 @@ def print_ynab_transactions(transactions: list[TempYnabTransaction]) -> None:
     rprint(table)
 
 
-def markdown_formatted_title(title: str, url: str | AnyUrl) -> str:
+def markdown_formatted_title(title: str, url: Union[str, AnyUrl]) -> str:
     """Returns a formatted item title in markdown or raw format, dependent on ynab_use_markdown.
 
     Args:
@@ -231,7 +231,7 @@ def markdown_formatted_title(title: str, url: str | AnyUrl) -> str:
     return title
 
 
-def markdown_formatted_link(title: str, url: str | AnyUrl) -> str:
+def markdown_formatted_link(title: str, url: Union[str, AnyUrl]) -> str:
     """Returns a link in markdown or raw format, dependent on ynab_use_markdown.
 
     Args:
