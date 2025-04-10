@@ -36,6 +36,17 @@ dev = [
     "ruff>=0.11.4",
     "types-requests>=2.32.0.20250328",
 ]
+test = [
+    "faker>=37.1.0",
+    "polyfactory>=2.20.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-sugar>=1.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+python_files = ["test_*.py"]
 
 [build-system]
 requires = ["hatchling"]
