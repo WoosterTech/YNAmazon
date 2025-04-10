@@ -1032,6 +1032,7 @@ dev = [
     { name = "ruff" },
 ]
 test = [
+    { name = "faker" },
     { name = "polyfactory" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -1058,6 +1059,7 @@ dev = [
     { name = "ruff", specifier = ">=0.11.4" },
 ]
 test = [
+    { name = "faker", specifier = ">=37.1.0" },
     { name = "polyfactory", specifier = ">=2.20.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-cov", specifier = ">=6.1.1" },
