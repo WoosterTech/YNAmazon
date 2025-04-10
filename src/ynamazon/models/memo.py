@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from ynamazon.models.amazon import SimpleAmazonOrder
 from ynamazon.types_pydantic import AmazonItemType
 
+YNAB_MAX_MEMO_LENGTH = 500  # YNAB's character limit
+
 
 class MultiLineText(BaseModel):
     """A class to handle multi-line text."""
@@ -52,7 +54,12 @@ class BaseMemoField(BaseModel, abc.ABC):
         segments = [str(self.header)] if self.header else []
         segments.append(self.render_items())
         segments.append(self.render_order_info())
-        return "\n".join(segments)
+        memo = "\n".join(segments)
+        return truncate_memo(memo)
+
+    def get_length(self) -> int:
+        """Returns the length of the memo."""
+        return len(str(self))
 
 
 class BasicMemoField(BaseMemoField):
@@ -85,3 +92,68 @@ class MarkdownMemoField(BaseMemoField):
     def render_order_info(self):
         assert self.order is not None, "Order information is not available."
         return f"[Order #{self.order.number}]({self.order.link})"
+
+
+def truncate_memo(memo: str, *, max_length: int = YNAB_MAX_MEMO_LENGTH) -> str:
+    """Ensure memo doesn't exceed YNAB's character limit by truncating each line proportionally.
+
+    Args:
+        memo (str): The full memo text
+        max_length (int): The maximum allowed length for the memo
+
+            (default is YNAB_MAX_MEMO_LENGTH)
+
+    Returns:
+        str: Truncated memo with each line shortened proportionally if needed
+    """
+    # Keep this check for function's integrity as a standalone utility
+    if len(memo) <= max_length:
+        return memo
+
+    # Split the memo into lines
+    lines = memo.split("\n")
+
+    # Calculate how many characters need to be removed
+    excess_chars = len(memo) - max_length
+
+    # Count total characters in item lines (excluding warning and URL lines)
+    item_lines = []
+    non_item_lines = []
+
+    for line in lines:
+        # Identify item lines (numbered items)
+        if line.strip() and (line.strip()[0].isdigit() and ". " in line):
+            item_lines.append(line)
+        else:
+            non_item_lines.append(line)
+
+    # If no item lines found, fall back to simple truncation
+    if not item_lines:
+        return memo[: max_length - 12] + " [truncated]"
+
+    # Calculate characters to remove from each item line
+    chars_per_line = excess_chars // len(item_lines)
+
+    # Truncate each item line
+    new_lines = []
+    for line in lines:
+        if line in item_lines:
+            # For numbered items, preserve the numbering, truncate the content
+            parts = line.split(". ", 1)
+            if len(parts) == 2 and len(parts[1]) > chars_per_line + 3:
+                truncated_item = (
+                    parts[0] + ". " + parts[1][: -(chars_per_line + 3)] + "..."
+                )
+                new_lines.append(truncated_item)
+            else:
+                new_lines.append(line)  # Line too short to truncate
+        else:
+            new_lines.append(line)  # Don't truncate non-item lines
+
+    result = "\n".join(new_lines)
+
+    # Final check - if we're still over the limit, do a simple truncation
+    if len(result) > max_length:
+        return result[: max_length - 12] + " [truncated]"
+
+    return result
