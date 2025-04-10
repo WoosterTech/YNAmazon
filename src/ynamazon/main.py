@@ -27,20 +27,6 @@ if TYPE_CHECKING:
     from ynab import Configuration
 
 
-class MultiLineText(BaseModel):
-    """A class to handle multi-line text."""
-
-    lines: list[str] = Field(default_factory=list)
-
-    def __str__(self) -> str:
-        """Returns the string representation of the object."""
-        return "\n".join(self.lines)
-
-    def append(self, line: str) -> None:
-        """Appends a line to the text."""
-        self.lines.append(line)
-
-
 def truncate_memo(memo: str) -> str:
     """Ensure memo doesn't exceed YNAB's character limit by truncating each line proportionally.
 
@@ -173,20 +159,22 @@ def process_transactions(
             total=amazon_tran.order_total,
         )
 
+        memo_str = str(memo)
+
         console.print("[bold u green]Memo:[/]")
-        console.print(str(memo))
+        console.print(memo_str)
 
         # Check if memo needs truncation and display before/after if needed
         if len(str(memo)) > 500:
             console.print(
                 f"[yellow]Warning: Memo exceeds YNAB's 500 character limit ({len(str(memo))} characters)[/]"
             )
-            original_memo = str(memo)
-            memo = truncate_memo(original_memo)
+            original_memo = memo_str
+            memo_str = truncate_memo(original_memo)
             console.print("[bold cyan]Memo after truncation:[/]")
             console.print(memo)
             console.print(
-                f"[green]Truncated from {len(original_memo)} to {len(memo)} characters[/]"
+                f"[green]Truncated from {len(original_memo)} to {len(memo_str)} characters[/]"
             )
 
         if amazon_tran.completed_date != ynab_tran.var_date:
@@ -217,7 +205,7 @@ def process_transactions(
 
         update_ynab_transaction(
             transaction=ynab_tran,
-            memo=memo,
+            memo=memo_str,
             payee_id=amazon_with_memo_payee.id,
         )
         console.print("\n\n")
