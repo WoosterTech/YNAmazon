@@ -38,6 +38,68 @@ class MultiLineText(BaseModel):
         self.lines.append(line)
 
 
+def truncate_memo(memo: str) -> str:
+    """Ensure memo doesn't exceed YNAB's character limit by truncating each line proportionally.
+    
+    Args:
+        memo (str): The full memo text
+        
+    Returns:
+        str: Truncated memo with each line shortened proportionally if needed
+    """
+    max_length = 500  # YNAB's character limit
+    
+    # Keep this check for function's integrity as a standalone utility
+    if len(memo) <= max_length:
+        return memo
+    
+    # Split the memo into lines
+    lines = memo.split('\n')
+    
+    # Calculate how many characters need to be removed
+    excess_chars = len(memo) - max_length
+    
+    # Count total characters in item lines (excluding warning and URL lines)
+    item_lines = []
+    non_item_lines = []
+    
+    for line in lines:
+        # Identify item lines (numbered items)
+        if line.strip() and (line.strip()[0].isdigit() and '. ' in line):
+            item_lines.append(line)
+        else:
+            non_item_lines.append(line)
+    
+    # If no item lines found, fall back to simple truncation
+    if not item_lines:
+        return memo[:max_length - 12] + " [truncated]"
+    
+    # Calculate characters to remove from each item line
+    chars_per_line = excess_chars // len(item_lines)
+    
+    # Truncate each item line
+    new_lines = []
+    for line in lines:
+        if line in item_lines:
+            # For numbered items, preserve the numbering, truncate the content
+            parts = line.split('. ', 1)
+            if len(parts) == 2 and len(parts[1]) > chars_per_line + 3:
+                truncated_item = parts[0] + '. ' + parts[1][:-(chars_per_line + 3)] + '...'
+                new_lines.append(truncated_item)
+            else:
+                new_lines.append(line)  # Line too short to truncate
+        else:
+            new_lines.append(line)  # Don't truncate non-item lines
+    
+    result = '\n'.join(new_lines)
+    
+    # Final check - if we're still over the limit, do a simple truncation
+    if len(result) > max_length:
+        return result[:max_length - 12] + " [truncated]"
+    
+    return result
+
+
 # TODO: reduce complexity of this function
 def process_transactions(  # noqa: C901
     amazon_config: AmazonConfig | None = None,
@@ -108,6 +170,15 @@ def process_transactions(  # noqa: C901
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
 
+        # Check if memo needs truncation and display before/after if needed
+        if len(str(memo)) > 500:
+            console.print(f"[yellow]Warning: Memo exceeds YNAB's 500 character limit ({len(str(memo))} characters)[/]")
+            original_memo = str(memo)
+            memo = truncate_memo(original_memo)
+            console.print("[bold cyan]Memo after truncation:[/]")
+            console.print(memo)
+            console.print(f"[green]Truncated from {len(original_memo)} to {len(memo)} characters[/]")
+
         if amazon_tran.completed_date != ynab_tran.var_date:
             console.print(
                 f"[yellow]**** The dates don't match! YNAB: {ynab_tran.var_date} Amazon: {amazon_tran.completed_date}[/]"
@@ -136,7 +207,7 @@ def process_transactions(  # noqa: C901
 
         update_ynab_transaction(
             transaction=ynab_tran,
-            memo=str(memo),
+            memo=memo,
             payee_id=amazon_with_memo_payee.id,
         )
         console.print("\n\n")

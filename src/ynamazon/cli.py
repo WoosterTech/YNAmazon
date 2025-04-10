@@ -5,6 +5,9 @@ from rich.console import Console
 from rich.table import Table
 from typer import Argument, Option, Typer
 from ynab import Configuration
+from typer import Context
+from typer import run as typer_run
+from rich import print as rprint
 
 from .amazon_transactions import AmazonConfig, get_amazon_transactions
 from .main import process_transactions
@@ -168,3 +171,15 @@ def ynamazon(
         ynab_config=Configuration(access_token=ynab_api_key),
         budget_id=ynab_budget_id,
     )
+
+
+@cli.callback(invoke_without_command=True)
+def yna_callback(ctx: Context) -> None:
+    """
+    [bold cyan]Run 'yna' to match and update transactions using the arguements in .env. [/]
+
+    [yellow i]Use 'yna ynamazon [ARGS]' to use command-line arguements to override .env. [/]
+    """
+    rprint("[bold cyan]Starting YNAmazon processing...[/]")
+    if ctx.invoked_subcommand is None:
+        typer_run(function=ynamazon)
