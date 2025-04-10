@@ -22,3 +22,4 @@ repos:
     rev: 0.23.0
     hooks:
     -   id: deptry
+        args: [src]

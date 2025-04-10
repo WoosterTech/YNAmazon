@@ -1,22 +1,25 @@
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.prompt import Confirm
 
-from .amazon_transactions import (
+from ynamazon.amazon_transactions import (
     AmazonConfig,
     get_amazon_transactions,
     locate_amazon_transaction_by_amount,
 )
-from .exceptions import YnabSetupError
-from .settings import settings
-from .ynab_transactions import default_configuration as ynab_configuration
-from .ynab_transactions import (
+from ynamazon.exceptions import YnabSetupError
+from ynamazon.models.amazon import SimpleAmazonOrder
+from ynamazon.models.memo import (
+    BaseMemoField,
+    BasicMemoField,
+    MarkdownMemoField,
+)
+from ynamazon.settings import settings
+from ynamazon.ynab_transactions import default_configuration as ynab_configuration
+from ynamazon.ynab_transactions import (
     get_ynab_transactions,
-    markdown_formatted_link,
-    markdown_formatted_title,
     update_ynab_transaction,
 )
 
@@ -24,30 +27,20 @@ if TYPE_CHECKING:
     from ynab import Configuration
 
 
-class MultiLineText(BaseModel):
-    """A class to handle multi-line text."""
-
-    lines: list[str] = Field(default_factory=list)
-
-    def __str__(self) -> str:
-        """Returns the string representation of the object."""
-        return "\n".join(self.lines)
-
-    def append(self, line: str) -> None:
-        """Appends a line to the text."""
-        self.lines.append(line)
-
-
 # TODO: reduce complexity of this function
-def process_transactions(  # noqa: C901
+def process_transactions(
     amazon_config: AmazonConfig | None = None,
     ynab_config: "Configuration | None" = None,
     budget_id: str | None = None,
+    use_markdown: bool | None = None,
 ) -> None:
     """Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos."""
     amazon_config = amazon_config or AmazonConfig()
     ynab_config = ynab_config or ynab_configuration
     budget_id = budget_id or settings.ynab_budget_id.get_secret_value()
+    use_markdown = (
+        use_markdown if use_markdown is not None else settings.ynab_use_markdown
+    )
 
     console = Console()
 
@@ -68,7 +61,7 @@ def process_transactions(  # noqa: C901
     console.print("[cyan]Starting to look for matching transactions...[/]")
     for ynab_tran in ynab_trans:
         console.print(
-            f"[cyan]Looking for an Amazon Transaction that matches this YNAB transaction:[/] {ynab_tran.var_date} ${ynab_tran.amount / -1000:.2f}"
+            f"[cyan]Looking for an Amazon Transaction that matches this YNAB transaction:[/] {ynab_tran.var_date} ${ynab_tran.amount_decimal:.2f}"
         )
         # because YNAB uses "milliunits" for amounts, we need to convert to dollars
         logger.debug(f"YNAB transaction amount [dollars]: {ynab_tran.amount_decimal}")
@@ -86,23 +79,20 @@ def process_transactions(  # noqa: C901
             f"[green]Matching Amazon Transaction:[/] {amazon_tran.completed_date} ${amazon_tran.transaction_total:.2f}"
         )
 
-        memo = MultiLineText()
+        if use_markdown:
+            memo_cls: type[BaseMemoField] = MarkdownMemoField
+        else:
+            memo_cls = BasicMemoField
+        memo = memo_cls()
         if amazon_tran.transaction_total != amazon_tran.order_total:
-            memo.append(
+            memo.header.append(
                 f"-This transaction doesn't represent the entire order. The order total is ${amazon_tran.order_total:.2f}-"
             )
-        if len(amazon_tran.items) > 1:
-            memo.append("**Items**")
-            for i, item in enumerate(amazon_tran.items, start=1):
-                memo.append(f"{i}. {markdown_formatted_title(item.title, item.link)}")
-        elif len(amazon_tran.items) == 1:
-            item = amazon_tran.items[0]
-            memo.append(f"- {markdown_formatted_title(item.title, item.link)}")
-
-        memo.append(
-            markdown_formatted_link(
-                f"Order #{amazon_tran.order_number}", amazon_tran.order_link
-            )
+        memo.items.extend(amazon_tran.items)
+        memo.order = SimpleAmazonOrder(
+            number=amazon_tran.order_number,
+            link=amazon_tran.order_link,
+            total=amazon_tran.order_total,
         )
 
         console.print("[bold u green]Memo:[/]")
