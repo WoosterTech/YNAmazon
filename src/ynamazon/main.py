@@ -19,7 +19,7 @@ from ynamazon.ynab_transactions import (
     markdown_formatted_title,
     update_ynab_transaction,
 )
-from ynamazon.memo_truncation import summarize_memo
+from ynamazon.ynab_memo import process_memo
 
 if TYPE_CHECKING:
     from ynab import Configuration
@@ -108,19 +108,9 @@ def process_transactions(  # noqa: C901
 
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
-
-        # Check if memo needs truncation and display before/after if needed
-        if len(str(memo)) > 500:
-            console.print(
-                f"[yellow]Warning: Memo exceeds YNAB's 500 character limit ({len(str(memo))} characters)[/]"
-            )
-            original_memo = str(memo)
-            memo = summarize_memo(original_memo)
-            console.print("[bold cyan]Memo after summarization:[/]")
-            console.print(memo)
-            console.print(
-                f"[green]Summarized from {len(original_memo)} to {len(memo)} characters[/]"
-            )
+        
+        # Process the memo and use new AI summary or trucation if needed
+        memo = process_memo(str(memo))
 
         if amazon_tran.completed_date != ynab_tran.var_date:
             console.print(

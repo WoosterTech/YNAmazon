@@ -56,7 +56,7 @@ from rich.console import Console
 from rich.panel import Panel
 import re
 
-from ynamazon.memo_truncation import truncate_memo, summarize_memo_with_ai
+from ynamazon.ynab_memo import truncate_memo, summarize_memo_with_ai, process_memo
 
 console = Console()
 YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
@@ -90,10 +90,15 @@ def test_memo_truncation(memo: str, memo_type: str) -> None:
     summarized = summarize_memo_with_ai(memo, order_url)
     console.print(Panel(summarized, title="AI Summarized", border_style="yellow"))
     
+    console.print("\n[bold magenta]After Process Memo:[/]")
+    processed = process_memo(memo)
+    console.print(Panel(processed, title="Processed", border_style="magenta"))
+    
     console.print(f"\n[bold]Lengths:[/]")
     console.print(f"Original: {len(memo)} characters")
     console.print(f"Truncated: {len(truncated)} characters")
     console.print(f"Summarized: {len(summarized)} characters")
+    console.print(f"Processed: {len(processed)} characters")
 
 if __name__ == "__main__":
     # Test memos

@@ -10,6 +10,7 @@ from ynamazon.prompts import (
     AMAZON_SUMMARY_PLAIN_PROMPT, 
     AMAZON_SUMMARY_MARKDOWN_PROMPT
 )
+from rich.console import Console
 
 # Constants
 YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
@@ -74,12 +75,17 @@ def generate_ai_summary(
         if partial_order_note and not settings.suppress_partial_order_warning:
             memo += f"{partial_order_note}\n\n"
         
-        memo += f"{summary}\n{order_url}"
+        # Calculate available space for summary (leaving room for URL)
+        url_length = len(order_url) + 1  # +1 for newline
+        available_space = max_length - url_length
+        if partial_order_note:
+            available_space -= len(partial_order_note) + 2  # +2 for newlines
         
-        # Final safety check
-        if len(memo) > max_length:
-            logger.warning(f"AI summary still exceeds {max_length} characters ({len(memo)}). Truncating.")
-            memo = memo[:max_length-3] + "..."
+        # If summary is too long, truncate it
+        if len(summary) > available_space:
+            summary = summary[:available_space-3] + "..."
+        
+        memo += f"{summary}\n{order_url}"
             
         return memo
         
@@ -88,28 +94,72 @@ def generate_ai_summary(
         return None
 
 
+def normalize_memo(memo: str) -> str:
+    """Normalize a memo by joining any split lines that contain a URL."""
+    lines = memo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    result = []
+    current_line = ""
+    in_url = False
+    
+    for line in lines:
+        stripped = line.strip()
+        if "amazon.com" in line:
+            current_line += stripped
+            in_url = True
+        elif in_url and (stripped.endswith("-") or stripped.endswith(")")):
+            # If we're in a URL and the line ends with a hyphen or closing parenthesis
+            current_line += stripped
+            if stripped.endswith(")"):
+                in_url = False
+                result.append(current_line)
+                current_line = ""
+        elif in_url:
+            # If we're in a URL but the line doesn't end with a hyphen
+            current_line += stripped
+        else:
+            if current_line:
+                result.append(current_line)
+                current_line = ""
+            result.append(line)
+    
+    if current_line:
+        result.append(current_line)
+    
+    return "\n".join(result)
+
+
+def extract_order_url(memo: str) -> str:
+    """Extract the Amazon order URL from a memo, handling both markdown and non-markdown formats."""
+    # First normalize the memo to handle split lines
+    normalized_memo = normalize_memo(memo)
+    
+    # First try to find a markdown URL
+    markdown_url_match = re.search(r'\[Order\s*#[\w-]+\]\((https://www\.amazon\.com/gp/your-account/order-details\?orderID=[\w-]+)\)', normalized_memo)
+    if markdown_url_match:
+        return markdown_url_match.group(1)
+    
+    # If no markdown URL found, look for a plain URL
+    plain_url_match = re.search(r'https://www\.amazon\.com/gp/your-account/order-details\?orderID=[\w-]+', normalized_memo)
+    if plain_url_match:
+        return plain_url_match.group(0)
+    
+    return None
+
+
 def truncate_memo(memo: str) -> str:
     """Truncate a memo to fit within YNAB's character limit while preserving important information."""
     if len(memo) <= YNAB_MEMO_LIMIT:
         return memo
 
+    # Extract the URL first
+    url_line = extract_order_url(memo)
+    
     # Strip all markdown formatting
     clean_memo = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', memo)  # Remove markdown links
     clean_memo = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_memo)  # Remove bold
     
     # Normalize line endings and split into lines
     lines = [line.strip() for line in clean_memo.replace("\r\n", "\n").split("\n") if line.strip()]
-    
-    # Identify special lines
-    url_line = None
-    # First try to find the URL in the last line
-    if lines and "https" in lines[-1]:
-        url_line = lines[-1]
-    # If not found, look for it in the original memo
-    if not url_line:
-        url_match = re.search(r'https://www\.amazon\.com/gp/your-account/order-details\?orderID=[\w-]+', memo)
-        if url_match:
-            url_line = url_match.group(0)
     
     multi_order_line = next((line for line in lines if line.startswith("-This transaction")), None)
     items_header = next((line for line in lines if line == "Items"), None)
@@ -120,14 +170,12 @@ def truncate_memo(memo: str) -> str:
         if line[0].isdigit() and ". " in line:
             item_lines.append(line)
     
-    # Calculate how many characters we need to remove
+    # Calculate how many characters we need to remove, excluding the URL
     current_length = sum(len(line) + 1 for line in [multi_order_line, items_header] + item_lines if line)
-    if url_line:
-        current_length += len(url_line) + 1
     
-    if current_length > YNAB_MEMO_LIMIT:
+    if current_length > YNAB_MEMO_LIMIT - len(url_line) - 1:  # -1 for newline
         # Calculate how many characters to remove from each item line
-        chars_to_remove = current_length - YNAB_MEMO_LIMIT
+        chars_to_remove = current_length - (YNAB_MEMO_LIMIT - len(url_line) - 1)
         chars_per_line = chars_to_remove // len(item_lines)
         
         # Truncate each item line
@@ -199,15 +247,11 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
 
 
 def summarize_memo(memo: str) -> str:
-    """Summarize a memo using AI if enabled and memo is long enough."""
-    if len(memo) <= 500:
-        return memo
-        
+    """Summarize a memo using AI if enabled, otherwise use truncation."""
     if settings.use_ai_summarization:
         logger.info("Using AI summarization for memo")
         # Extract order URL from memo
-        url_match = re.search(r'https://www\.amazon\.com/gp/your-account/order-details\?orderID=[\w-]+', memo)
-        order_url = url_match.group(0) if url_match else None
+        order_url = extract_order_url(memo)
         
         if not order_url:
             logger.warning("Could not find order URL in memo, falling back to truncation")
@@ -219,4 +263,52 @@ def summarize_memo(memo: str) -> str:
         return summarize_memo_with_ai(clean_memo, order_url)
     else:
         logger.info("Using truncation summarization for memo")
-        return truncate_memo(memo) 
+        return truncate_memo(memo)
+
+
+def process_memo(memo: str) -> str:
+    """Process a memo using AI summarization if enabled, otherwise use truncation if needed.
+    
+    This function handles both markdown and non-markdown memos based on the settings.ynab_use_markdown setting:
+    - If markdown is enabled, it preserves markdown formatting in the output
+    - If markdown is disabled, it strips all markdown formatting
+    
+    The processing strategy is:
+    1. If AI summarization is enabled (settings.use_ai_summarization):
+       - Uses OpenAI to generate a concise summary
+       - Preserves markdown formatting if enabled
+       - Ensures the summary fits within YNAB's character limit
+    
+    2. If AI summarization is disabled:
+       - Checks if memo exceeds YNAB's character limit
+       - If it does, uses truncation to shorten while preserving important information
+       - If not, returns the original memo
+    
+    Returns:
+        str: The processed memo, either AI-summarized or truncated, with appropriate markdown formatting
+    """
+    console = Console()
+    original_memo = str(memo)
+    
+    if settings.use_ai_summarization:
+        console.print("[yellow]Using AI summarization for memo[/]")
+        processed_memo = summarize_memo(original_memo)
+        console.print("[bold cyan]Memo after AI summarization:[/]")
+        console.print(processed_memo)
+        console.print(
+            f"[green]Summarized from {len(original_memo)} to {len(processed_memo)} characters[/]"
+        )
+    elif len(original_memo) > YNAB_MEMO_LIMIT:
+        console.print(
+            f"[yellow]Warning: Memo exceeds YNAB's {YNAB_MEMO_LIMIT} character limit ({len(original_memo)} characters)[/]"
+        )
+        processed_memo = summarize_memo(original_memo)
+        console.print("[bold cyan]Memo after truncation:[/]")
+        console.print(processed_memo)
+        console.print(
+            f"[green]Truncated from {len(original_memo)} to {len(processed_memo)} characters[/]"
+        )
+    else:
+        processed_memo = original_memo
+        
+    return processed_memo 
