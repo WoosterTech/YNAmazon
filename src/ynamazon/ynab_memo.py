@@ -246,26 +246,6 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
     return summary
 
 
-def summarize_memo(memo: str) -> str:
-    """Summarize a memo using AI if enabled, otherwise use truncation."""
-    if settings.use_ai_summarization:
-        logger.info("Using AI summarization for memo")
-        # Extract order URL from memo
-        order_url = extract_order_url(memo)
-        
-        if not order_url:
-            logger.warning("Could not find order URL in memo, falling back to truncation")
-            return truncate_memo(memo)
-            
-        # Strip all markdown formatting
-        clean_memo = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', memo)  # Remove markdown links
-        clean_memo = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_memo)  # Remove bold
-        return summarize_memo_with_ai(clean_memo, order_url)
-    else:
-        logger.info("Using truncation summarization for memo")
-        return truncate_memo(memo)
-
-
 def process_memo(memo: str) -> str:
     """Process a memo using AI summarization if enabled, otherwise use truncation if needed.
     
@@ -287,28 +267,48 @@ def process_memo(memo: str) -> str:
     Returns:
         str: The processed memo, either AI-summarized or truncated, with appropriate markdown formatting
     """
-    console = Console()
     original_memo = str(memo)
+    original_length = len(original_memo)
+    
+    # Extract order URL first since we'll need it for both paths
+    order_url = extract_order_url(original_memo)
+    if not order_url:
+        logger.warning("No Amazon order URL found in memo")
+        return original_memo
     
     if settings.use_ai_summarization:
-        console.print("[yellow]Using AI summarization for memo[/]")
-        processed_memo = summarize_memo(original_memo)
-        console.print("[bold cyan]Memo after AI summarization:[/]")
-        console.print(processed_memo)
-        console.print(
-            f"[green]Summarized from {len(original_memo)} to {len(processed_memo)} characters[/]"
-        )
-    elif len(original_memo) > YNAB_MEMO_LIMIT:
-        console.print(
-            f"[yellow]Warning: Memo exceeds YNAB's {YNAB_MEMO_LIMIT} character limit ({len(original_memo)} characters)[/]"
-        )
-        processed_memo = summarize_memo(original_memo)
-        console.print("[bold cyan]Memo after truncation:[/]")
-        console.print(processed_memo)
-        console.print(
-            f"[green]Truncated from {len(original_memo)} to {len(processed_memo)} characters[/]"
-        )
-    else:
-        processed_memo = original_memo
-        
-    return processed_memo 
+        logger.info("Using AI summarization")
+        processed_memo = summarize_memo_with_ai(original_memo, order_url)
+        if processed_memo:
+            logger.info(f"Processed memo from {original_length} to {len(processed_memo)} characters using AI")
+            return processed_memo
+        else:
+            logger.warning("AI summarization failed, falling back to truncation")
+    
+    # If AI summarization is disabled or failed, check if we need truncation
+    if original_length > YNAB_MEMO_LIMIT:
+        processed_memo = truncate_memo(original_memo)
+        logger.info(f"Processed memo from {original_length} to {len(processed_memo)} characters using truncation")
+        return processed_memo
+    
+    return original_memo
+
+
+def summarize_memo(memo: str) -> str:
+    """Summarize a memo using AI if enabled, otherwise use truncation."""
+    original_memo = str(memo)
+    
+    # Extract order URL first since we'll need it for both paths
+    order_url = extract_order_url(original_memo)
+    if not order_url:
+        logger.warning("No Amazon order URL found in memo")
+        return truncate_memo(original_memo)
+    
+    if settings.use_ai_summarization:
+        processed_memo = summarize_memo_with_ai(original_memo, order_url)
+        if processed_memo:
+            return processed_memo
+        else:
+            logger.warning("AI summarization failed, falling back to truncation")
+    
+    return truncate_memo(original_memo) 
