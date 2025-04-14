@@ -144,6 +144,47 @@ def extract_order_url(memo: str) -> str:
     return None
 
 
+def _extract_memo_parts(memo: str) -> tuple[str | None, str | None, list[str]]:
+    """Extract key parts from the memo: multi-order line, items header, and item lines."""
+    lines = [line.strip() for line in memo.replace("\r\n", "\n").split("\n") if line.strip()]
+    
+    multi_order_line = next((line for line in lines if line.startswith("-This transaction")), None)
+    items_header = next((line for line in lines if line == "Items"), None)
+    
+    item_lines = []
+    for line in lines:
+        if line[0].isdigit() and ". " in line:
+            item_lines.append(line)
+    
+    return multi_order_line, items_header, item_lines
+
+
+def _calculate_remaining_space(multi_order_line: str | None, items_header: str | None, item_lines: list[str], url_line: str) -> int:
+    """Calculate remaining space for content after accounting for required parts."""
+    required_lines = [line for line in [multi_order_line, items_header, url_line] if line]
+    required_space = sum(len(line) + 1 for line in required_lines)  # +1 for newline
+    return YNAB_MEMO_LIMIT - required_space
+
+
+def _truncate_item_lines(item_lines: list[str], available_space: int) -> list[str]:
+    """Truncate item lines to fit within available space."""
+    truncated_items = []
+    current_length = 0
+    
+    for item in item_lines:
+        item_length = len(item) + 1  # +1 for newline
+        if current_length + item_length <= available_space:
+            truncated_items.append(item)
+            current_length += item_length
+        else:
+            remaining_space = available_space - current_length
+            if remaining_space >= 4:  # Enough space for "..."
+                truncated_items.append("...")
+            break
+    
+    return truncated_items
+
+
 def truncate_memo(memo: str) -> str:
     """Truncate a memo to fit within YNAB's character limit while preserving important information."""
     if len(memo) <= YNAB_MEMO_LIMIT:
@@ -156,56 +197,25 @@ def truncate_memo(memo: str) -> str:
     clean_memo = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', memo)  # Remove markdown links
     clean_memo = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_memo)  # Remove bold
     
-    # Normalize line endings and split into lines
-    lines = [line.strip() for line in clean_memo.replace("\r\n", "\n").split("\n") if line.strip()]
+    # Extract key parts
+    multi_order_line, items_header, item_lines = _extract_memo_parts(clean_memo)
     
-    multi_order_line = next((line for line in lines if line.startswith("-This transaction")), None)
-    items_header = next((line for line in lines if line == "Items"), None)
+    # Calculate available space
+    available_space = _calculate_remaining_space(multi_order_line, items_header, item_lines, url_line)
     
-    # Process item lines
-    item_lines = []
-    for line in lines:
-        if line[0].isdigit() and ". " in line:
-            item_lines.append(line)
+    # Truncate items if needed
+    truncated_items = _truncate_item_lines(item_lines, available_space)
     
-    # Calculate how many characters we need to remove, excluding the URL
-    current_length = sum(len(line) + 1 for line in [multi_order_line, items_header, *item_lines] if line)
-    
-    if current_length > YNAB_MEMO_LIMIT - len(url_line) - 1:  # -1 for newline
-        # Calculate how many characters to remove from each item line
-        chars_to_remove = current_length - (YNAB_MEMO_LIMIT - len(url_line) - 1)
-        chars_per_line = chars_to_remove // len(item_lines)
-        
-        # Truncate each item line
-        truncated_items = []
-        for line in item_lines:
-            num, text = line.split(". ", 1)
-            truncated_text = text[:len(text)-chars_per_line] + "..."
-            truncated_items.append(f"{num}. {truncated_text}")
-        
-        # Build the result
-        result = []
-        if multi_order_line:
-            result.append(multi_order_line)
-        if items_header:
-            result.append(items_header)
-        result.extend(truncated_items)
-        if url_line:
-            result.append(url_line)
-        
-        return "\n".join(result)
-    
-    # If we're under the limit, return the cleaned memo
-    result = []
+    # Build final memo
+    final_lines = []
     if multi_order_line:
-        result.append(multi_order_line)
-    if items_header:
-        result.append(items_header)
-    result.extend(item_lines)
-    if url_line:
-        result.append(url_line)
+        final_lines.append(multi_order_line)
+    if items_header and truncated_items:
+        final_lines.append(items_header)
+    final_lines.extend(truncated_items)
+    final_lines.append(url_line)
     
-    return "\n".join(result)
+    return "\n".join(final_lines)
 
 
 def summarize_memo_with_ai(memo: str, order_url: str) -> str:
