@@ -23,6 +23,8 @@ A program to annotate YNAB transactions with Amazon order info
         YNAB_PAYEE_NAME_TO_BE_PROCESSED="Amazon - Needs Memo"
         YNAB_PAYEE_NAME_PROCESSING_COMPLETED=Amazon
         YNAB_USE_MARKDOWN=true/false
+        YNAB_USE_AI_SUMMARIZATION=true/false
+        OPENAI_API_KEY=your-openai-api-key
         AMAZON_USER=your-amazon-email
         AMAZON_PASSWORD=your-amazon-password
         ```
@@ -50,6 +52,7 @@ This program automates the process of annotating YNAB transactions with detailed
    - A note if the transaction does not represent the full order total.
    - A list of items in the order.
    - A link to the Amazon order details.
+   - If AI summarization is enabled, it will use OpenAI to generate a concise summary of the order.
 
 5. **Transaction Update**: The program updates the YNAB transaction with the generated memo and changes its payee to a designated name (e.g., "Amazon") to mark it as processed.
 
@@ -66,6 +69,7 @@ For a transaction for an order with a single item, the memo format is as minimal
 60 Gallon Barrel of Maple Syrup
 https://www.amazon.com/gp/css/summary/edit.html?orderID=123-1234567-7654321
 ```
+
 For orders with more than one item, they are listed in a numbered markdown list:
 ``` plaintext
 1. Dog Costume
@@ -73,6 +77,13 @@ For orders with more than one item, they are listed in a numbered markdown list:
 3. Popcorn-shaped Purse
 https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
 ```
+
+If AI summarization is enabled, the memo will be a concise summary of the order:
+``` plaintext
+Dog Costume, Facepaint, and Popcorn-shaped Purse
+https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
+```
+
 If Amazon splits the order into multiple transactions, this program will detect that and warn you in the memo. In this case, YNAB will label all transactions for that order with the same memo. Unfortunately, it is not possible to easily tell which items belong to what transactions, so you may have to click on the link and figure it out for yourself:
 ``` plaintext
 -This transaction doesn't represent the entire order. The order total is $99.99-
@@ -82,6 +93,18 @@ If Amazon splits the order into multiple transactions, this program will detect 
 3. Popcorn-shaped Purse
 https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
 ```
+
+## AI Summarization
+The program can use OpenAI's GPT model to generate concise summaries of your Amazon orders. To enable this feature:
+
+1. Set `YNAB_USE_AI_SUMMARIZATION=true` in your `.env` file
+2. Add your OpenAI API key: `OPENAI_API_KEY=your-openai-api-key`
+
+When enabled, the program will:
+- Generate concise summaries of orders with multiple items
+- Preserve important information like order URLs and partial order warnings
+- Fall back to standard truncation if AI summarization fails or is unavailable
+- Will not use markdown formatting if enabled since this only increases memo length
 
 ## Limitations
 This script probably won't be able to handle weird edge cases. The amazon-orders library is only able to handle amazon.com and will not pull data from other countries' amazon sites. Any transactions in the amazon transaction history that don't relate to an amazon.com order will be ignored. As with any tool that relies on web scraping, things can change at any time and it is up to the maintainers of the amazon-orders library to fix things.

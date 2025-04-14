@@ -215,13 +215,13 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
     # Strip markdown formatting
     clean_memo = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', memo)  # Remove markdown links
     clean_memo = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_memo)  # Remove bold
-    
+
     # Extract items and order URL from memo
     lines = clean_memo.split("\n")
     items = []
     order_total = None
     transaction_amount = None
-    
+
     for line in lines:
         if line.strip() and line.strip()[0].isdigit() and ". " in line:
             items.append(line)
@@ -229,7 +229,7 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
             order_total = line.split("$")[-1].strip()
         elif "transaction doesn't represent" in line:
             transaction_amount = line.split("$")[-1].strip()
-    
+
     # Generate AI summary
     summary = generate_ai_summary(
         items=items,
@@ -237,12 +237,11 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
         order_total=order_total,
         transaction_amount=transaction_amount
     )
-    
-    # If summary is still too long, truncate it
-    if len(summary) > YNAB_MEMO_LIMIT:
-        logger.warning(f"AI summary still exceeds {YNAB_MEMO_LIMIT} characters ({len(summary)}). Truncating.")
-        return truncate_memo(summary)
-    
+
+    # If AI summarization failed or summary is too long, fall back to truncation
+    if summary is None or len(summary) > YNAB_MEMO_LIMIT:
+        return truncate_memo(memo)
+
     return summary
 
 
