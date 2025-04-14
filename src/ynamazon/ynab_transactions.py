@@ -12,8 +12,8 @@ from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 
-from .exceptions import YnabSetupError
-from .settings import settings
+from ynamazon.exceptions import YnabSetupError
+from ynamazon.settings import settings
 
 default_configuration = Configuration(
     access_token=settings.ynab_api_key.get_secret_value()
@@ -164,11 +164,14 @@ def update_ynab_transaction(
         transaction=ExistingTransaction.model_validate(transaction.to_dict())
     )
     
+    # Convert memo to string if it's a MultiLineText object
+    memo_str = str(memo)
+    
     # Ensure memo doesn't exceed 500 character limit
-    if len(memo) > 500:
-        logger.warning(f"Memo exceeds 500 character limit ({len(memo)} chars). Truncating...")
+    if len(memo_str) > 500:
+        logger.warning(f"Memo exceeds 500 character limit ({len(memo_str)} chars). Truncating...")
         # Keep the important parts - first warning line, and the URL at the end
-        lines = memo.split('\n')
+        lines = memo_str.split('\n')
         
         # Extract the URL at the end (it must be preserved)
         url_line = lines[-1]
@@ -187,9 +190,9 @@ def update_ynab_transaction(
             middle_content = middle_content[:remaining_space] + "..."
         
         # Combine the parts to stay under 500 chars
-        memo = f"{header}{middle_content}\n{url_line}"
+        memo_str = f"{header}{middle_content}\n{url_line}"
     
-    data.transaction.memo = memo
+    data.transaction.memo = memo_str
     data.transaction.payee_id = payee_id
     with ApiClient(configuration=configuration) as api_client:
         _ = TransactionsApi(api_client=api_client).update_transaction(

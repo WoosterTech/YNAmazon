@@ -5,20 +5,21 @@ from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.prompt import Confirm
 
-from .amazon_transactions import (
+from ynamazon.amazon_transactions import (
     AmazonConfig,
     get_amazon_transactions,
     locate_amazon_transaction_by_amount,
 )
-from .exceptions import YnabSetupError
-from .settings import settings
-from .ynab_transactions import default_configuration as ynab_configuration
-from .ynab_transactions import (
+from ynamazon.exceptions import YnabSetupError
+from ynamazon.settings import settings
+from ynamazon.ynab_transactions import default_configuration as ynab_configuration
+from ynamazon.ynab_transactions import (
     get_ynab_transactions,
     markdown_formatted_link,
     markdown_formatted_title,
     update_ynab_transaction,
 )
+from ynamazon.memo_truncation import summarize_memo
 
 if TYPE_CHECKING:
     from ynab import Configuration
@@ -36,70 +37,6 @@ class MultiLineText(BaseModel):
     def append(self, line: str) -> None:
         """Appends a line to the text."""
         self.lines.append(line)
-
-
-def truncate_memo(memo: str) -> str:
-    """Ensure memo doesn't exceed YNAB's character limit by truncating each line proportionally.
-
-    Args:
-        memo (str): The full memo text
-
-    Returns:
-        str: Truncated memo with each line shortened proportionally if needed
-    """
-    max_length = 500  # YNAB's character limit
-
-    # Keep this check for function's integrity as a standalone utility
-    if len(memo) <= max_length:
-        return memo
-
-    # Split the memo into lines
-    lines = memo.split("\n")
-
-    # Calculate how many characters need to be removed
-    excess_chars = len(memo) - max_length
-
-    # Count total characters in item lines (excluding warning and URL lines)
-    item_lines = []
-    non_item_lines = []
-
-    for line in lines:
-        # Identify item lines (numbered items)
-        if line.strip() and (line.strip()[0].isdigit() and ". " in line):
-            item_lines.append(line)
-        else:
-            non_item_lines.append(line)
-
-    # If no item lines found, fall back to simple truncation
-    if not item_lines:
-        return memo[: max_length - 12] + " [truncated]"
-
-    # Calculate characters to remove from each item line
-    chars_per_line = excess_chars // len(item_lines)
-
-    # Truncate each item line
-    new_lines = []
-    for line in lines:
-        if line in item_lines:
-            # For numbered items, preserve the numbering, truncate the content
-            parts = line.split(". ", 1)
-            if len(parts) == 2 and len(parts[1]) > chars_per_line + 3:
-                truncated_item = (
-                    parts[0] + ". " + parts[1][: -(chars_per_line + 3)] + "..."
-                )
-                new_lines.append(truncated_item)
-            else:
-                new_lines.append(line)  # Line too short to truncate
-        else:
-            new_lines.append(line)  # Don't truncate non-item lines
-
-    result = "\n".join(new_lines)
-
-    # Final check - if we're still over the limit, do a simple truncation
-    if len(result) > max_length:
-        return result[: max_length - 12] + " [truncated]"
-
-    return result
 
 
 # TODO: reduce complexity of this function
@@ -178,11 +115,11 @@ def process_transactions(  # noqa: C901
                 f"[yellow]Warning: Memo exceeds YNAB's 500 character limit ({len(str(memo))} characters)[/]"
             )
             original_memo = str(memo)
-            memo = truncate_memo(original_memo)
-            console.print("[bold cyan]Memo after truncation:[/]")
+            memo = summarize_memo(original_memo)
+            console.print("[bold cyan]Memo after summarization:[/]")
             console.print(memo)
             console.print(
-                f"[green]Truncated from {len(original_memo)} to {len(memo)} characters[/]"
+                f"[green]Summarized from {len(original_memo)} to {len(memo)} characters[/]"
             )
 
         if amazon_tran.completed_date != ynab_tran.var_date:

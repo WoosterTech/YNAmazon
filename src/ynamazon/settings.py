@@ -1,5 +1,6 @@
 from pydantic import EmailStr, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 
 
 class SecretApiKey(SecretStr):
@@ -25,16 +26,32 @@ class SecretBudgetId(SecretStr):
 class Settings(BaseSettings):
     """Settings configuration for project."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        env_prefix="",
+        case_sensitive=True,
+        extra="ignore"
+    )
 
     ynab_api_key: SecretApiKey
     ynab_budget_id: SecretBudgetId
     amazon_user: EmailStr
     amazon_password: SecretStr
+    openai_api_key: SecretStr | None = None
 
     ynab_payee_name_to_be_processed: str = "Amazon - Needs Memo"
     ynab_payee_name_processing_completed: str = "Amazon"
     ynab_use_markdown: bool = False
+    use_ai_summarization: bool = False
+    suppress_partial_order_warning: bool = False
+
+    @field_validator("ynab_use_markdown", "use_ai_summarization", "suppress_partial_order_warning", mode="before")
+    @classmethod
+    def convert_bool(cls, v: str | bool) -> bool:
+        if isinstance(v, bool):
+            return v
+        return v.lower() in ("true", "1", "t", "y", "yes")
 
 
 settings = Settings()  # type: ignore[call-arg]
