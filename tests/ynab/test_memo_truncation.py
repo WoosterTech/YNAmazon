@@ -9,7 +9,6 @@ This module contains tests for the memo processing functionality, including:
 
 from unittest.mock import patch
 import pytest
-import os
 from ynamazon.ynab_memo import (
     process_memo, 
     truncate_memo, 

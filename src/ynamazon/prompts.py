@@ -1,11 +1,13 @@
-"""
-AI prompt templates for generating summaries of Amazon orders.
+"""AI prompt templates for generating summaries of Amazon orders.
+
 This file contains customizable prompt templates used by the AI summarization functionality.
 """
 
 # System prompt defines the AI assistant's behavior
 AMAZON_SUMMARY_SYSTEM_PROMPT = """
-You are a helpful assistant that summarizes Amazon purchases for a budget tracking app. You create very brief, concise, human-readable descriptions of items.
+You are a helpful assistant that summarizes Amazon orders for YNAB memos.
+Your goal is to create concise, readable summaries that fit within YNAB's 500 character limit.
+Focus on preserving important information like order URLs and partial order warnings.
 
 Rules:
 - Omit all Amazon branding (don't include "Amazon", "Amazon Basics", "Amazon Essentials", etc.)

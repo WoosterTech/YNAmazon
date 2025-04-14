@@ -2,7 +2,7 @@
 
 from loguru import logger
 import re
-from typing import List
+from typing import Optional
 from openai import OpenAI
 from ynamazon.settings import settings
 from ynamazon.prompts import (
@@ -10,21 +10,19 @@ from ynamazon.prompts import (
     AMAZON_SUMMARY_PLAIN_PROMPT, 
     AMAZON_SUMMARY_MARKDOWN_PROMPT
 )
-from rich.console import Console
 
 # Constants
 YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
 
 
 def generate_ai_summary(
-    items: List[str],
+    items: list[str],
     order_url: str,
-    order_total: str = None,
-    transaction_amount: str = None,
+    order_total: Optional[str] = None,
+    transaction_amount: Optional[str] = None,
     max_length: int = 500
 ) -> str:
-    """
-    Uses OpenAI to generate a concise human-readable memo that fits within the character limit.
+    """Uses OpenAI to generate a concise human-readable memo that fits within the character limit.
     
     Args:
         items: List of item descriptions
@@ -90,7 +88,7 @@ def generate_ai_summary(
         return memo
         
     except Exception as e:
-        logger.error(f"Error using OpenAI API: {str(e)}")
+        logger.error(f"Error using OpenAI API: {e}")
         return None
 
 
@@ -171,7 +169,7 @@ def truncate_memo(memo: str) -> str:
             item_lines.append(line)
     
     # Calculate how many characters we need to remove, excluding the URL
-    current_length = sum(len(line) + 1 for line in [multi_order_line, items_header] + item_lines if line)
+    current_length = sum(len(line) + 1 for line in [multi_order_line, items_header, *item_lines] if line)
     
     if current_length > YNAB_MEMO_LIMIT - len(url_line) - 1:  # -1 for newline
         # Calculate how many characters to remove from each item line
