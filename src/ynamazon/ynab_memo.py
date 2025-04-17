@@ -20,7 +20,7 @@ def generate_ai_summary(
     order_url: str,
     order_total: Optional[str] = None,
     transaction_amount: Optional[str] = None,
-    max_length: int = 500
+    max_length: int = YNAB_MEMO_LIMIT
 ) -> str:
     """Uses OpenAI to generate a concise human-readable memo that fits within the character limit.
     
@@ -29,7 +29,7 @@ def generate_ai_summary(
         order_url: Amazon order URL
         order_total: Total order amount (if different from transaction)
         transaction_amount: Current transaction amount
-        max_length: Maximum allowed characters (default: 500)
+        max_length: Maximum allowed characters (default: YNAB_MEMO_LIMIT)
     
     Returns:
         A human-readable memo summarized by AI
