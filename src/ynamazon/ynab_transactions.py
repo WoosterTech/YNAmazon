@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any, TypeVar, Union
 
 from loguru import logger
-from pydantic import AnyUrl
+from pydantic import AnyUrl, BaseModel, Field
 from rich import print as rprint
 from rich.table import Table
 from ynab import ApiClient, Configuration, PayeesApi, TransactionsApi
@@ -11,6 +11,9 @@ from ynab.models.existing_transaction import ExistingTransaction
 from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
+from ynab.models.transaction_flag_color import TransactionFlagColor
+
+from ynamazon.amazon.models import Transaction
 
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.settings import settings
@@ -20,14 +23,126 @@ default_configuration = Configuration(
 )
 my_budget_id = settings.ynab_budget_id
 
+PARTIAL_ORDER_MEMO = "-This transaction doesn't represent the entire order. The order total is ${order_total:.2f}-"
+YNAB_MAX_MEMO_LENGTH = 500
+
+
+class MemoField(BaseModel):
+    header_lines: list[str] = Field(default_factory=list)
+    item_lines: list[tuple[int, str]] = Field(default_factory=list)
+    footer_lines: list[str] = Field(default_factory=list)
+
+    def __str__(self) -> str:
+        if len(items := self.item_lines) == 1:
+            items_str = [f"- {items[0][1]!s}"]
+        else:
+            items_str = [f"- {i}. {item}" for i, item in items]
+        return "\n".join([*self.header_lines, *items_str, *self.footer_lines])
+
+    def __len__(self) -> int:
+        return len(str(self))
+
 
 class TempYnabTransaction(HybridTransaction):
     """Temporary YNAB transaction."""
+
+    _memo: str | None = None
+    _memo_truncated: bool | None = None
+
+    @property
+    def rendered_memo(self) -> str:
+        return self._memo or ""
 
     @property
     def amount_decimal(self) -> Decimal:
         """Returns the amount in currency."""
         return self.amount / Decimal("1000")
+
+    def create_memo(self, amazon_transaction: Transaction) -> None:
+        """Creates a memo for the transaction."""
+        if amazon_transaction.order is None:
+            msg = "amazon_transaction must be matched to an order!"
+            raise ValueError(msg)
+        items = amazon_transaction.order.items
+
+        memo = MemoField()
+        if (
+            amazon_transaction.grand_total.compare(
+                order_total := -amazon_transaction.order.grand_total
+            )
+            != 0
+        ):
+            logger.debug(
+                f"Transaction total {amazon_transaction.grand_total} doesn't match order total {order_total}"
+            )
+            memo.header_lines.append(PARTIAL_ORDER_MEMO.format(order_total=order_total))
+
+        if len(items) > 1:
+            memo.header_lines.append("**Items**")
+            for i, item in enumerate(items, start=1):
+                memo.item_lines.append((i, str(item)))
+        if len(items) == 1:
+            memo.item_lines.append((0, str(items[0])))
+
+        assert amazon_transaction.order.order_details_link is not None, (
+            "Order details link is None. This shouldn't happen."
+        )
+        memo.footer_lines.append(
+            markdown_formatted_link(
+                f"Order #{amazon_transaction.order.order_number}",
+                url=amazon_transaction.order.order_details_link,
+            )
+        )
+
+        truncated, memo_str = simple_memo_truncate(memo)
+        self._memo = memo_str
+        self._memo_truncated = truncated
+
+
+def simple_memo_truncate(
+    memo: MemoField,
+    *,
+    max_length: int = YNAB_MAX_MEMO_LENGTH,
+    ellipsis: str = "...",
+    truncated_text: str = "[truncated]",
+) -> tuple[bool, str]:
+    """Truncates the memo to a maximum length.
+
+    Args:
+        memo (str): The memo to truncate.
+        max_length (int): The maximum length of the memo.
+        ellipsis (str): The string to append to the end of the memo if it is truncated.
+        truncated_text (str): The string to append to the end of the memo if it is truncated.
+
+    Returns:
+        tuple[bool, str]: A tuple containing a boolean indicating if the memo was truncated and the truncated memo.
+    """
+    old_memo = memo
+    new_memo = old_memo.model_copy()
+    truncated = False
+    if (length := len(new_memo)) > max_length:
+        truncated = True
+        # if no items, do a naive truncation
+        if len(new_memo.item_lines) == 0:
+            return truncated, str(new_memo)[
+                : max_length - len(truncated_text) - 1
+            ] + truncated_text
+
+        excess_chars = length - max_length
+
+        chars_per_line = excess_chars // len(new_memo.item_lines)
+
+        for line in new_memo.item_lines:
+            if len(line_text := line[1]) > chars_per_line:
+                line = (
+                    line[0],
+                    line_text[: max_length - len(truncated_text) - 1] + ellipsis,
+                )
+
+    assert len(new_memo) <= max_length, (
+        f"Memo is still too long after truncation: {len(new_memo)} > {max_length}"
+    )
+    return truncated, str(new_memo)
 
 
 def translate_hybrid_to_temp(
@@ -194,10 +309,13 @@ def update_ynab_transaction(
     
     data.transaction.memo = memo_str
     data.transaction.payee_id = payee_id
+    data.transaction.flag_color = TransactionFlagColor.ORANGE
     with ApiClient(configuration=configuration) as api_client:
-        _ = TransactionsApi(api_client=api_client).update_transaction(
+        update_response = TransactionsApi(api_client=api_client).update_transaction(
             budget_id=budget_id, transaction_id=transaction.id, data=data
         )
+
+    print(update_response)
 
 
 _T = TypeVar("_T", bound=Payee)
