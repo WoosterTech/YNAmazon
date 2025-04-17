@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     ynab_budget_id: SecretBudgetId
     amazon_user: EmailStr
     amazon_password: SecretStr
-    openai_api_key: SecretStr | None = None
+    openai_api_key: SecretApiKey | None = None
 
     ynab_payee_name_to_be_processed: str = "Amazon - Needs Memo"
     ynab_payee_name_processing_completed: str = "Amazon"
@@ -46,7 +46,6 @@ class Settings(BaseSettings):
     use_ai_summarization: bool = False
     suppress_partial_order_warning: bool = False
 
-    @field_validator("ynab_use_markdown", "use_ai_summarization", "suppress_partial_order_warning", mode="before")
     @classmethod
     def convert_bool(cls, v: str | bool) -> bool:
         if isinstance(v, bool):

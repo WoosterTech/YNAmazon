@@ -36,7 +36,7 @@ A program to annotate YNAB transactions with Amazon order info
      uv sync
      
      # Installation with AI features
-     uv sync -e ai
+     uv sync --extra ai
      ```
 
 ## Use CLI
@@ -103,7 +103,7 @@ The program can use OpenAI's GPT model to generate concise summaries of your Ama
 
 1. Install the package with AI features:
    ```bash
-   uv sync -e ai
+   uv sync --extra ai
    ```
 2. Set `YNAB_USE_AI_SUMMARIZATION=true` in your `.env` file
 3. Add your OpenAI API key: `OPENAI_API_KEY=your-openai-api-key`
