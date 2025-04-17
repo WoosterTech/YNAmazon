@@ -7,7 +7,7 @@ This module contains tests for the memo processing functionality, including:
 - Proper preservation of order URLs and partial order warnings
 """
 
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import pytest
 from ynamazon.ynab_memo import (
     process_memo, 
@@ -15,9 +15,13 @@ from ynamazon.ynab_memo import (
     normalize_memo,
     extract_order_url,
     generate_ai_summary,
-    YNAB_MEMO_LIMIT
+    YNAB_MEMO_LIMIT,
+    InvalidOpenAIAPIKey,
+    OpenAIEmptyResponseError,
+    summarize_memo_with_ai,
 )
 from ynamazon.settings import settings
+from openai import OpenAI, APIError, AuthenticationError
 
 # Test data
 PARTIAL_ORDER_WARNING = "-This transaction doesn't represent the entire order. The order total is $603.41-"
@@ -204,15 +208,49 @@ def test_extract_order_url():
 def test_generate_ai_summary_error_handling(mock_settings):
     """Test error handling in generate_ai_summary."""
     from pydantic import SecretStr
-    mock_settings.openai_api_key = SecretStr("test_key")
-    
-    # Test with invalid items
-    result = generate_ai_summary([], "https://amazon.com/order/123")
-    assert result is None
 
-    # Test with invalid URL
-    result = generate_ai_summary(["Item 1"], "not-a-url")
-    assert result is None
+    # Test with invalid API key
+    with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
+         patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("test_key")):
+        mock_client = Mock()
+        mock_client.api_key = "test_key"
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = AuthenticationError(
+            message="Invalid API key",
+            response=Mock(status_code=401),
+            body={"error": {"message": "Invalid API key"}}
+        )
+
+        with pytest.raises(InvalidOpenAIAPIKey):
+            generate_ai_summary(["Item 1"], "https://amazon.com/order/123")
+
+    # Test with API error
+    with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
+         patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("valid_key")):
+        mock_client = Mock()
+        mock_client.api_key = "valid_key"
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = APIError(
+            message="Internal server error",
+            request=Mock(),
+            body={"error": {"message": "Internal server error"}}
+        )
+
+        result = generate_ai_summary(["Item 1"], "not-a-url")
+        assert result is None
+
+    # Test with empty response
+    with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
+         patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("valid_key")):
+        mock_client = Mock()
+        mock_client.api_key = "valid_key"
+        mock_openai.return_value = mock_client
+        mock_response = Mock()
+        mock_response.choices = []
+        mock_client.chat.completions.create.return_value = mock_response
+
+        with pytest.raises(OpenAIEmptyResponseError):
+            generate_ai_summary(["Item 1"], "not-a-url")
 
 def test_partial_order_warning_variations(test_memo_plain, mock_settings):
     """Test handling of different partial order warning formats."""

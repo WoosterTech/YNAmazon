@@ -4,13 +4,14 @@ from loguru import logger
 import re
 from typing import Optional
 from openai import OpenAI
+from openai import AuthenticationError, RateLimitError, APIError
 from ynamazon.settings import settings
 from ynamazon.prompts import (
     AMAZON_SUMMARY_SYSTEM_PROMPT, 
     AMAZON_SUMMARY_PLAIN_PROMPT, 
     AMAZON_SUMMARY_MARKDOWN_PROMPT
 )
-from .exceptions import MissingOpenAIAPIKey
+from .exceptions import MissingOpenAIAPIKey, InvalidOpenAIAPIKey, OpenAIEmptyResponseError
 
 # Constants
 YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
@@ -34,6 +35,12 @@ def generate_ai_summary(
     
     Returns:
         A human-readable memo summarized by AI
+        
+    Raises:
+        MissingOpenAIAPIKey: If OpenAI API key is not found
+        InvalidOpenAIAPIKey: If OpenAI API key is invalid or authentication fails
+        OpenAIEmptyResponseError: If OpenAI returns an empty or invalid response
+        Exception: For other OpenAI API errors
     """
     # Check if OpenAI key is available
     if not settings.openai_api_key.get_secret_value():
@@ -65,31 +72,34 @@ def generate_ai_summary(
                 {"role": "user", "content": full_prompt}
             ]
         )
-        
-        summary = response.choices[0].message.content.strip()
-        
-        # Combine all parts
-        memo = ""
-        if partial_order_note and not settings.suppress_partial_order_warning:
-            memo += f"{partial_order_note}\n\n"
-        
-        # Calculate available space for summary (leaving room for URL)
-        url_length = len(order_url) + 1  # +1 for newline
-        available_space = max_length - url_length
-        if partial_order_note:
-            available_space -= len(partial_order_note) + 2  # +2 for newlines
-        
-        # If summary is too long, truncate it
-        if len(summary) > available_space:
-            summary = summary[:available_space-3] + "..."
-        
-        memo += f"{summary}\n{order_url}"
-            
-        return memo
-        
-    except Exception as e:
-        logger.error(f"Error using OpenAI API: {e}")
+    except AuthenticationError as e:
+        raise InvalidOpenAIAPIKey("Invalid OpenAI API key") from e
+    except RateLimitError as e:
+        logger.error(f"OpenAI API rate limit exceeded: {e}")
         return None
+    except APIError as e:
+        logger.error(f"OpenAI API error: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error using OpenAI API: {e}")
+        return None
+        
+    # Check for empty response
+    if not response.choices or not response.choices[0].message.content:
+        raise OpenAIEmptyResponseError("OpenAI returned an empty response")
+
+    # Extract and validate the content
+    message_content = response.choices[0].message.content
+
+    # Ensure the summary fits within the character limit
+    if len(message_content) > max_length:
+        message_content = message_content[:max_length]
+
+    # Add partial order note if needed
+    if partial_order_note:
+        message_content = f"{message_content} {partial_order_note}"
+
+    return message_content
 
 
 def normalize_memo(memo: str) -> str:
@@ -224,19 +234,27 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
     clean_memo = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', memo)  # Remove markdown links
     clean_memo = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_memo)  # Remove bold
 
-    # Extract items and order URL from memo
+    # Extract items and order information
     lines = clean_memo.split("\n")
     items = []
     order_total = None
     transaction_amount = None
 
     for line in lines:
-        if line.strip() and line.strip()[0].isdigit() and ". " in line:
-            items.append(line)
+        # Handle single item format (starts with "- ")
+        if line.strip().startswith("- "):
+            items.append(line.strip()[2:])  # Remove the "- " prefix
+        # Handle numbered list format
+        elif line.strip() and line.strip()[0].isdigit() and ". " in line:
+            items.append(line.strip())
         elif "order total is $" in line:
-            order_total = line.split("$")[-1].strip()
+            order_total = line.split("$")[-1].strip("-")
         elif "transaction doesn't represent" in line:
-            transaction_amount = line.split("$")[-1].strip()
+            transaction_amount = line.split("$")[-1].strip("-")
+
+    # If no items were found, return the original memo
+    if not items:
+        return memo
 
     # Generate AI summary
     summary = generate_ai_summary(
