@@ -10,6 +10,7 @@ from ynamazon.prompts import (
     AMAZON_SUMMARY_PLAIN_PROMPT, 
     AMAZON_SUMMARY_MARKDOWN_PROMPT
 )
+from .exceptions import MissingOpenAIAPIKey
 
 # Constants
 YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
@@ -36,8 +37,7 @@ def generate_ai_summary(
     """
     # Check if OpenAI key is available
     if not settings.openai_api_key.get_secret_value():
-        logger.warning("OpenAI API key not found. Skipping AI summarization.")
-        return None
+        raise MissingOpenAIAPIKey("OpenAI API key not found")
     
     # Create client
     client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
