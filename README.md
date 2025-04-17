@@ -30,9 +30,13 @@ A program to annotate YNAB transactions with Amazon order info
         ```
 6. **Install Dependencies**:
    - Install `uv` ([instructions](https://github.com/astral-sh/uv?tab=readme-ov-file#installation)) if needed
-   - Run the following command to install the required dependencies:
+   - Run one of the following commands to install the required dependencies:
      ```bash
+     # Basic installation (without AI features)
      uv sync
+     
+     # Installation with AI features
+     uv sync -e ai
      ```
 
 ## Use CLI
@@ -97,8 +101,12 @@ https://www.amazon.com/gp/css/summary/edit.html?orderID=321-7890123-4567890
 ## AI Summarization
 The program can use OpenAI's GPT model to generate concise summaries of your Amazon orders. To enable this feature:
 
-1. Set `YNAB_USE_AI_SUMMARIZATION=true` in your `.env` file
-2. Add your OpenAI API key: `OPENAI_API_KEY=your-openai-api-key`
+1. Install the package with AI features:
+   ```bash
+   uv sync -e ai
+   ```
+2. Set `YNAB_USE_AI_SUMMARIZATION=true` in your `.env` file
+3. Add your OpenAI API key: `OPENAI_API_KEY=your-openai-api-key`
 
 When enabled, the program will:
 - Generate concise summaries of orders with multiple items

@@ -16,7 +16,11 @@ dependencies = [
     "pydantic-core>=2.33.1",
     "furl>=2.1.4",
     "requests>=2.30.0",
-    "openai>=1.12.0",  # Add OpenAI Python client for AI summarization
+]
+
+[project.optional-dependencies]
+ai = [
+    "openai>=1.12.0",  # OpenAI Python client for AI summarization
 ]
 
 [project.urls]
