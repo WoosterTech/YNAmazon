@@ -213,13 +213,12 @@ def test_generate_ai_summary_error_handling(mock_settings):
     with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
          patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("test_key")):
         mock_client = Mock()
-        mock_client.api_key = "test_key"
-        mock_openai.return_value = mock_client
         mock_client.chat.completions.create.side_effect = AuthenticationError(
             message="Invalid API key",
             response=Mock(status_code=401),
             body={"error": {"message": "Invalid API key"}}
         )
+        mock_openai.return_value = mock_client
 
         with pytest.raises(InvalidOpenAIAPIKey):
             generate_ai_summary(["Item 1"], "https://amazon.com/order/123")
@@ -228,13 +227,12 @@ def test_generate_ai_summary_error_handling(mock_settings):
     with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
          patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("valid_key")):
         mock_client = Mock()
-        mock_client.api_key = "valid_key"
-        mock_openai.return_value = mock_client
         mock_client.chat.completions.create.side_effect = APIError(
             message="Internal server error",
             request=Mock(),
             body={"error": {"message": "Internal server error"}}
         )
+        mock_openai.return_value = mock_client
 
         result = generate_ai_summary(["Item 1"], "not-a-url")
         assert result is None
@@ -243,11 +241,10 @@ def test_generate_ai_summary_error_handling(mock_settings):
     with patch('ynamazon.ynab_memo.OpenAI') as mock_openai, \
          patch('ynamazon.ynab_memo.settings.openai_api_key', SecretStr("valid_key")):
         mock_client = Mock()
-        mock_client.api_key = "valid_key"
-        mock_openai.return_value = mock_client
         mock_response = Mock()
         mock_response.choices = []
         mock_client.chat.completions.create.return_value = mock_response
+        mock_openai.return_value = mock_client
 
         with pytest.raises(OpenAIEmptyResponseError):
             generate_ai_summary(["Item 1"], "not-a-url")
