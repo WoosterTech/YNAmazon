@@ -1,7 +1,6 @@
 from pydantic import EmailStr, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
-from typing import Optional
 from .exceptions import MissingOpenAIAPIKey
 
 

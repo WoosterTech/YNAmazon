@@ -18,10 +18,9 @@ from ynamazon.ynab_memo import (
     YNAB_MEMO_LIMIT,
     InvalidOpenAIAPIKey,
     OpenAIEmptyResponseError,
-    summarize_memo_with_ai,
 )
 from ynamazon.settings import settings
-from openai import OpenAI, APIError, AuthenticationError
+from openai import APIError, AuthenticationError
 
 # Test data
 PARTIAL_ORDER_WARNING = "-This transaction doesn't represent the entire order. The order total is $603.41-"
