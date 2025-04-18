@@ -23,7 +23,7 @@ def generate_ai_summary(
     order_total: Optional[str] = None,
     transaction_amount: Optional[str] = None,
     max_length: int = YNAB_MEMO_LIMIT
-) -> str:
+) -> str | None:
     """Uses OpenAI to generate a concise human-readable memo that fits within the character limit.
     
     Args:
@@ -43,7 +43,7 @@ def generate_ai_summary(
         Exception: For other OpenAI API errors
     """
     # Check if OpenAI key is available
-    if not settings.openai_api_key.get_secret_value():
+    if settings.openai_api_key is None or not settings.openai_api_key.get_secret_value():
         raise MissingOpenAIAPIKey("OpenAI API key not found")
     
     # Create client

@@ -1,6 +1,6 @@
 from pydantic import EmailStr, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import model_validator
 from .exceptions import MissingOpenAIAPIKey
 
 
@@ -53,13 +53,12 @@ class Settings(BaseSettings):
             return v
         return v.lower() in ("true", "1", "t", "y", "yes")
 
-    @field_validator("use_ai_summarization")
-    @classmethod
-    def validate_ai_summarization(cls, v: bool, info) -> bool:
+    @model_validator(mode="after")
+    def validate_settings(self) -> "Settings":
         """Validate that OpenAI API key is present when AI summarization is enabled."""
-        if v and not info.data.get("openai_api_key"):
+        if self.use_ai_summarization and self.openai_api_key is None:
             raise MissingOpenAIAPIKey("OpenAI API key is required when AI summarization is enabled")
-        return v
+        return self
 
 
 settings = Settings()  # type: ignore[call-arg]
