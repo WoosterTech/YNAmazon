@@ -111,6 +111,9 @@ def process_transactions(  # noqa: C901
         
         # Process the memo and use new AI summary or trucation if needed
         memo = process_memo(str(memo))
+        
+        console.print("[bold u green]Processed Memo:[/]")
+        console.print(memo)
 
         if amazon_tran.completed_date != ynab_tran.var_date:
             console.print(
