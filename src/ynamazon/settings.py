@@ -47,12 +47,6 @@ class Settings(BaseSettings):
     use_ai_summarization: bool = False
     suppress_partial_order_warning: bool = False
 
-    @classmethod
-    def convert_bool(cls, v: str | bool) -> bool:
-        if isinstance(v, bool):
-            return v
-        return v.lower() in ("true", "1", "t", "y", "yes")
-
     @model_validator(mode="after")
     def validate_settings(self) -> "Settings":
         """Validate that OpenAI API key is present when AI summarization is enabled."""
