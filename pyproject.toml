@@ -18,6 +18,7 @@ dependencies = [
     "requests>=2.30.0",
     "toml>=0.10.2",
     "pyyaml>=6.0.2",
+    "amazoncaptcha",
 ]
 
 [project.urls]
@@ -25,7 +26,10 @@ Repository = "https://github.com/DanielKarp/YNAmazon"
 Issues = "https://github.com/DanielKarp/YNAmazon/issues"
 
 [tool.hatch.version]
-path = "src/ynamazon/__init__.py"
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/ynamazon/_version.py"
 
 [project.scripts]
 yna = "ynamazon.cli.cli:cli"
@@ -42,7 +46,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 
@@ -50,5 +54,8 @@ build-backend = "hatchling.build"
 module= ["amazonorders.*"]
 ignore_missing_imports = true
 
-# [tool.deptry]
-# known_first_party = ["ynamazon"]
+[tool.uv.sources]
+amazoncaptcha = { path = "../amazoncaptcha", editable = true }
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["amazoncaptcha"]  # custom package to override what's used in amazon-orders

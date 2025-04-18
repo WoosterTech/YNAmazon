@@ -181,3 +181,6 @@ cython_debug/
 
 # try to avoid adding config files that include secrets or sensitive information
 config*.*ml
+
+# version file
+*_version.py
