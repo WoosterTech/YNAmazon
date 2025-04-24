@@ -32,7 +32,9 @@ class SecretBudgetId(SecretStr):
 class Settings(BaseSettings):
     """Settings configuration for project."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", from_attributes=True
+    )
 
     ynab_api_key: SecretApiKey
     ynab_budget_id: SecretBudgetId
