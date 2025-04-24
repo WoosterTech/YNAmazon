@@ -8,7 +8,7 @@ from rich import print as rprint
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from typer import Argument, Context, Option, Typer, Exit
+from typer import Argument, Context, Exit, Option, Typer
 from typer import run as typer_run
 from ynab.configuration import Configuration
 
@@ -381,7 +381,12 @@ def select_matching_transaction(
     for idx, match in enumerate([trans for _, trans in matches], start=1):
         valid_choices.append(str(idx))
         match_order = match.order
-        assert match_order is not None, "Order is None"
+        if match_order is None:
+            console.print(
+                f"[bold red]**** No order found for transaction {match.completed_date} ${match.grand_total:.2f}[/]"
+            )
+            console.log(f"Transaction: {match}")
+            continue
         if match_order.order_details_link is None:
             order_number = match_order.order_number
         else:
