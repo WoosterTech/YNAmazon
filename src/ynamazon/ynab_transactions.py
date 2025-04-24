@@ -6,7 +6,10 @@ from loguru import logger
 from pydantic import AnyUrl, BaseModel, Field
 from rich import print as rprint
 from rich.table import Table
-from ynab import ApiClient, Configuration, PayeesApi, TransactionsApi
+from ynab.api.payees_api import PayeesApi
+from ynab.api.transactions_api import TransactionsApi
+from ynab.api_client import ApiClient
+from ynab.configuration import Configuration
 from ynab.models.existing_transaction import ExistingTransaction
 from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee

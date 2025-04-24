@@ -34,7 +34,7 @@ class AmazonTransactionWithOrderInfo(BaseModel):
     ]
     order_total: Decimal
     order_number: str
-    order_link: AnyUrl
+    order_link: Union[AnyUrl, None]
     items: list[AmazonItemType]
 
     @field_validator("transaction_total", mode="after")
@@ -54,10 +54,10 @@ class AmazonTransactionWithOrderInfo(BaseModel):
             raise ValueError(f"Order with number {transaction.order_number} not found.")
         return cls(
             completed_date=transaction.completed_date,
-            transaction_total=transaction.grand_total,
-            order_total=order.grand_total,
+            transaction_total=transaction.grand_total,  # pyright: ignore[reportArgumentType]
+            order_total=order.grand_total,  # pyright: ignore[reportArgumentType]
             order_number=order.order_number,
-            order_link=order.order_details_link,
+            order_link=order.order_details_link,  # pyright: ignore[reportArgumentType]
             items=order.items,
         )
 
@@ -160,7 +160,7 @@ def _fetch_amazon_order_history(
     for year in years:
         if len(year_str := str(year)) == 2:
             year_str = "20" + year_str
-        all_orders.extend(amazon_orders.get_order_history(year=year_str))
+        all_orders.extend(amazon_orders.get_order_history(year=int(year_str)))
     all_orders.sort(key=lambda order: order.order_placed_date)
 
     return all_orders

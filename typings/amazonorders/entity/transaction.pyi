@@ -13,6 +13,14 @@ class Transaction(Parsable):
     """An Amazon Transaction."""
 
     title: str
+    completed_date: date
+    payment_method: str
+    grand_total: float
+    is_refund: bool
+    order_number: str
+    order_details_link: str
+    seller: str
+
     def __init__(
         self, parsed: Tag, config: AmazonOrdersConfig, completed_date: date
     ) -> None: ...
