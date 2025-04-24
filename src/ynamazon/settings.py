@@ -1,6 +1,6 @@
-from pydantic import EmailStr, SecretStr
+from pydantic import EmailStr, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
+
 from .exceptions import MissingOpenAIAPIKey
 
 
@@ -28,11 +28,10 @@ class Settings(BaseSettings):
     """Settings configuration for project."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", 
+        env_file=".env",
         env_file_encoding="utf-8",
         env_prefix="",
-        case_sensitive=True,
-        extra="ignore"
+        extra="ignore",
     )
 
     ynab_api_key: SecretApiKey
@@ -51,7 +50,9 @@ class Settings(BaseSettings):
     def validate_settings(self) -> "Settings":
         """Validate that OpenAI API key is present when AI summarization is enabled."""
         if self.use_ai_summarization and self.openai_api_key is None:
-            raise MissingOpenAIAPIKey("OpenAI API key is required when AI summarization is enabled")
+            raise MissingOpenAIAPIKey(
+                "OpenAI API key is required when AI summarization is enabled"
+            )
         return self
 
 
