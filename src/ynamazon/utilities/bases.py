@@ -1,9 +1,7 @@
 from collections.abc import Iterable, Iterator
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
-    Literal,
     SupportsIndex,
     TypeVar,
     overload,
@@ -122,37 +120,6 @@ class SimpleListRoot(RootModel[list[_T]], Generic[_T]):
     def __setitem__(self, key: slice, value: Iterable[_T]) -> None: ...
     def __setitem__(self, key, value):
         self.root[key] = value
-
-    @overload
-    def get(self, *, default: _T | Missing = MISSING, **kwargs: Any) -> _T: ...
-    @overload
-    def get(self, *, default: Literal[None], **kwargs: Any) -> _T | None: ...
-    @overload
-    def get(self, *, default: _T | Missing | None, **kwargs: Any) -> _T | None: ...
-    def get(
-        self,
-        *,
-        default=MISSING,
-        **kwargs,
-    ):
-        """Return the item that matches the kwargs or the default value.
-
-        Raises:
-            ValueError: If 0 or more than 1 items are returned.
-        """
-        items_list = self.model_copy().filter(**kwargs)
-
-        if (list_len := len(items_list)) != 1:
-            if default is MISSING:
-                match list_len:
-                    case 0:
-                        msg = "get() returned no items"
-                    case _:
-                        msg = "get() returned more than one item"
-                raise ValueError(msg)
-            return default
-
-        return items_list[0]
 
     def append(self, item: _T):
         """Append an item to the end of class."""

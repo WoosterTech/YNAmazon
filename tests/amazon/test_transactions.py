@@ -81,7 +81,7 @@ def mock_amazon_many_items():
     return order
 
 
-def side_effect(year, *, mock_orders: list[Order]) -> Order:
+def side_effect(year, *, mock_orders: list[Order]) -> list[Order]:
     if year == "2022":
         return [mock_orders[0]]
     elif year == "2023":
@@ -96,15 +96,15 @@ def test_fetch_amazon_order_history_with_years(
     mock_orders: list[Order],
 ):
     side_effect_year = functools.partial(side_effect, mock_orders=mock_orders)
-    mock_amazon_orders.return_value.get_order_history.side_effect = side_effect_year
+    mock_amazon_orders.return_value.get_order_history.side_effect = side_effect_year  # pyright: ignore[reportAttributeAccessIssue]
 
     result = _fetch_amazon_order_history(session=mock_session, years=[2022, 2023])
 
     assert len(result) == 2
     assert result[0].order_number == "123"
     assert result[1].order_number == "456"
-    mock_amazon_orders.return_value.get_order_history.assert_any_call(year="2022")
-    mock_amazon_orders.return_value.get_order_history.assert_any_call(year="2023")
+    mock_amazon_orders.return_value.get_order_history.assert_any_call(year="2022")  # pyright: ignore[reportAttributeAccessIssue]
+    mock_amazon_orders.return_value.get_order_history.assert_any_call(year="2023")  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @patch(
@@ -116,7 +116,7 @@ def test_fetch_amazon_order_history_no_years(
     mock_orders: list[Order],
 ):
     side_effect_year = functools.partial(side_effect, mock_orders=mock_orders)
-    mock_amazon_orders.return_value.get_order_history.side_effect = side_effect_year
+    mock_amazon_orders.return_value.get_order_history.side_effect = side_effect_year  # pyright: ignore[reportAttributeAccessIssue]
 
     mock_current_year = 2023
 
@@ -126,7 +126,7 @@ def test_fetch_amazon_order_history_no_years(
 
     assert len(result) == 1
     assert result[0].order_number == "456"
-    mock_amazon_orders.return_value.get_order_history.assert_called_once_with(
+    mock_amazon_orders.return_value.get_order_history.assert_called_once_with(  # pyright: ignore[reportAttributeAccessIssue]
         year=str(mock_current_year)
     )
 
@@ -147,7 +147,7 @@ def test_fetch_amazon_order_history_several_items(
     mock_amazon_many_items: Order,
     mock_session: AmazonSession,
 ):
-    mock_amazon_orders.return_value.get_order_history.return_value = [
+    mock_amazon_orders.return_value.get_order_history.return_value = [  # pyright: ignore[reportAttributeAccessIssue]
         mock_amazon_many_items
     ]
 
