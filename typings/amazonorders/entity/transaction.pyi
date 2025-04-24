@@ -11,6 +11,8 @@ logger = ...
 
 class Transaction(Parsable):
     """An Amazon Transaction."""
+
+    title: str
     def __init__(
         self, parsed: Tag, config: AmazonOrdersConfig, completed_date: date
     ) -> None: ...
