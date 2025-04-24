@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Union  # ,  Self  # not available python <3.11

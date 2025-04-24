@@ -17,7 +17,6 @@ from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 from ynab.models.transaction_flag_color import TransactionFlagColor
 
 from ynamazon.amazon.models import Transaction
-
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.settings import settings
 
@@ -281,35 +280,37 @@ def update_ynab_transaction(
     data = PutTransactionWrapper(
         transaction=ExistingTransaction.model_validate(transaction.to_dict())
     )
-    
+
     # Convert memo to string if it's a MultiLineText object
     memo_str = str(memo)
-    
+
     # Ensure memo doesn't exceed 500 character limit
     if len(memo_str) > 500:
-        logger.warning(f"Memo exceeds 500 character limit ({len(memo_str)} chars). Truncating...")
+        logger.warning(
+            f"Memo exceeds 500 character limit ({len(memo_str)} chars). Truncating..."
+        )
         # Keep the important parts - first warning line, and the URL at the end
-        lines = memo_str.split('\n')
-        
+        lines = memo_str.split("\n")
+
         # Extract the URL at the end (it must be preserved)
         url_line = lines[-1]
-        
+
         # Keep the warning header if it exists
         header = ""
-        if len(lines) > 0 and '-This transaction doesn' in lines[0]:
-            header = lines[0] + '\n\n'
-        
+        if len(lines) > 0 and "-This transaction doesn" in lines[0]:
+            header = lines[0] + "\n\n"
+
         # Calculate remaining space for content
         remaining_space = 500 - len(header) - len(url_line) - 4  # 4 chars for "...\n"
-        
+
         # Get middle content (item list) and truncate if needed
-        middle_content = '\n'.join(lines[1:-1])
+        middle_content = "\n".join(lines[1:-1])
         if len(middle_content) > remaining_space:
             middle_content = middle_content[:remaining_space] + "..."
-        
+
         # Combine the parts to stay under 500 chars
         memo_str = f"{header}{middle_content}\n{url_line}"
-    
+
     data.transaction.memo = memo_str
     data.transaction.payee_id = payee_id
     data.transaction.flag_color = TransactionFlagColor.ORANGE
