@@ -48,8 +48,8 @@ class MemoField(BaseModel):
 class TempYnabTransaction(HybridTransaction):
     """Temporary YNAB transaction."""
 
-    _memo: str | None = None
-    _memo_truncated: bool | None = None
+    _memo: Union[str, None] = None
+    _memo_truncated: Union[bool, None] = None
 
     @property
     def rendered_memo(self) -> str:

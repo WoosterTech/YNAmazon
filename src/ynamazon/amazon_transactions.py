@@ -78,7 +78,7 @@ class AmazonConfig(BaseModel):
     config: AmazonOrdersConfig = Field(default_factory=lambda: AmazonOrdersConfig())
     debug: bool = False
 
-    def amazon_session(self, *, debug: bool | None = None) -> AmazonSession:
+    def amazon_session(self, *, debug: Union[bool, None] = None) -> AmazonSession:
         """Creates an Amazon session."""
         logger.debug(f"Creating Amazon session for {self.username}")
         return AmazonSession(
@@ -137,7 +137,7 @@ def _fetch_amazon_order_history(
     session: AmazonSession,
     years: Union[Sequence[Union[int, str]], Union[int, str], None] = None,
     debug: bool = False,
-    config: AmazonOrdersConfig | None = None,
+    config: Union[AmazonOrdersConfig, None] = None,
 ) -> list[Order]:
     """Returns a list of Amazon orders.
 
@@ -175,7 +175,7 @@ def _fetch_sorted_amazon_transactions(
     amazon_session: AmazonSession,
     transaction_days: int = 31,
     debug: bool = False,
-    config: AmazonOrdersConfig | None = None,
+    config: Union[AmazonOrdersConfig, None] = None,
 ) -> list[Transaction]:
     """Fetches and sorts Amazon transactions."""
     if not amazon_session.is_authenticated:
