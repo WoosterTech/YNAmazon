@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Union  # ,  Self  # not available python <3.11
@@ -7,6 +10,7 @@ from amazonorders.entity.transaction import Transaction
 from amazonorders.orders import AmazonOrders
 from amazonorders.session import AmazonSession
 from amazonorders.transactions import AmazonTransactions
+from cache_decorator import Cache
 from loguru import logger
 from pydantic import AnyUrl, BaseModel, EmailStr, Field, SecretStr, field_validator
 from rich import print as rprint
@@ -72,6 +76,11 @@ class AmazonConfig(BaseModel):
         )
 
 
+@Cache(
+    validity_duration="10m",
+    enable_cache_arg_name="use_cache",
+    cache_path=os.path.join(tempfile.gettempdir(), "ynamazon", "amazon_transactions_json_compatible_amazon_transactions_{_hash}.pkl")
+)
 def get_amazon_transactions(
     order_years: Union[list[int], None] = None,
     transaction_days: int = 31,
