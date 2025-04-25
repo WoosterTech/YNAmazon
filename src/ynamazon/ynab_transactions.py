@@ -18,12 +18,12 @@ from ynab.models.transaction_flag_color import TransactionFlagColor
 
 from ynamazon.amazon.models import Transaction
 from ynamazon.exceptions import YnabSetupError
-from ynamazon.settings import settings
+from ynamazon.settings import get_settings
 
 default_configuration = Configuration(
-    access_token=settings.ynab_api_key.get_secret_value()
+    access_token=get_settings().ynab_api_key.get_secret_value()
 )
-my_budget_id = settings.ynab_budget_id
+my_budget_id = get_settings().ynab_budget_id
 
 PARTIAL_ORDER_MEMO = "-This transaction doesn't represent the entire order. The order total is ${order_total:.2f}-"
 YNAB_MAX_MEMO_LENGTH = 500
@@ -236,20 +236,20 @@ def get_ynab_transactions(
     amazon_needs_memo_payee = find_item_by_attribute(
         items=payees,
         attribute="name",
-        value=settings.ynab_payee_name_to_be_processed,
+        value=get_settings().ynab_payee_name_to_be_processed,
     )
     amazon_with_memo_payee = find_item_by_attribute(
         items=payees,
         attribute="name",
-        value=settings.ynab_payee_name_processing_completed,
+        value=get_settings().ynab_payee_name_processing_completed,
     )
     if amazon_needs_memo_payee is None:
         raise YnabSetupError(
-            f"Payee '{settings.ynab_payee_name_to_be_processed}' not found in YNAB."
+            f"Payee '{get_settings().ynab_payee_name_to_be_processed}' not found in YNAB."
         )
     if amazon_with_memo_payee is None:
         raise YnabSetupError(
-            f"Payee '{settings.ynab_payee_name_processing_completed}' not found in YNAB."
+            f"Payee '{get_settings().ynab_payee_name_processing_completed}' not found in YNAB."
         )
 
     ynab_transactions = get_transactions_by_payee(
@@ -376,7 +376,7 @@ def markdown_formatted_title(title: str, url: Union[str, AnyUrl]) -> str:
     Returns:
         str: A URL string suitable for injection into the memo
     """
-    if settings.ynab_use_markdown:
+    if get_settings().ynab_use_markdown:
         return f"[{title}]({url})"
 
     return title
@@ -392,7 +392,7 @@ def markdown_formatted_link(title: str, url: Union[str, AnyUrl]) -> str:
     Returns:
         str: A URL string suitable for injection into the memo
     """
-    if settings.ynab_use_markdown:
+    if get_settings().ynab_use_markdown:
         return f"[{title}]({url})"
 
     if isinstance(url, AnyUrl):

@@ -22,7 +22,7 @@ from pydantic import (
 from rich import print as rprint
 from rich.table import Table
 
-from .settings import settings
+from .settings import get_settings
 from .types_pydantic import AmazonItemType
 
 
@@ -73,8 +73,8 @@ class AmazonConfig(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    username: EmailStr = Field(default_factory=lambda: settings.amazon_user)
-    password: SecretStr = Field(default_factory=lambda: settings.amazon_password)
+    username: EmailStr = Field(default_factory=lambda: get_settings().amazon_user)
+    password: SecretStr = Field(default_factory=lambda: get_settings().amazon_password)
     config: AmazonOrdersConfig = Field(default_factory=lambda: AmazonOrdersConfig())
     debug: bool = False
 

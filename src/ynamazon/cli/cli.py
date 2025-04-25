@@ -16,7 +16,7 @@ from ynamazon.amazon.models import Orders, Transaction, Transactions
 from ynamazon.amazon_transactions import AmazonConfig, get_amazon_transactions
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.main import process_transactions
-from ynamazon.settings import ConfigFile, SecretApiKey, SecretBudgetId, settings
+from ynamazon.settings import ConfigFile, SecretApiKey, SecretBudgetId, get_settings
 from ynamazon.ynab_transactions import (
     TempYnabTransaction,
     get_ynab_transactions,
@@ -35,14 +35,14 @@ def print_ynab_transactions(
         str | None,
         Argument(
             help="YNAB API key",
-            default_factory=lambda: settings.ynab_api_key.get_secret_value(),
+            default_factory=lambda: get_settings().ynab_api_key.get_secret_value(),
         ),
     ],
     budget_id: Annotated[
         str | None,
         Argument(
             help="YNAB Budget ID",
-            default_factory=lambda: settings.ynab_budget_id.get_secret_value(),
+            default_factory=lambda: get_settings().ynab_budget_id.get_secret_value(),
         ),
     ],
 ) -> None:
@@ -83,13 +83,15 @@ def print_ynab_transactions(
 def print_amazon_transactions(
     user_email: Annotated[
         str,
-        Argument(help="Amazon username", default_factory=lambda: settings.amazon_user),
+        Argument(
+            help="Amazon username", default_factory=lambda: get_settings().amazon_user
+        ),
     ],
     user_password: Annotated[
         str,
         Argument(
             help="Amazon password",
-            default_factory=lambda: settings.amazon_password.get_secret_value(),
+            default_factory=lambda: get_settings().amazon_password.get_secret_value(),
         ),
     ],
     order_years: Annotated[
@@ -148,28 +150,28 @@ def ynamazon(
         str | None,
         Argument(
             help="YNAB API key",
-            default_factory=lambda: settings.ynab_api_key.get_secret_value(),
+            default_factory=lambda: get_settings().ynab_api_key.get_secret_value(),
         ),
     ],
     ynab_budget_id: Annotated[
         str | None,
         Argument(
             help="YNAB Budget ID",
-            default_factory=lambda: settings.ynab_budget_id.get_secret_value(),
+            default_factory=lambda: get_settings().ynab_budget_id.get_secret_value(),
         ),
     ],
     amazon_user: Annotated[
         str,
         Argument(
             help="Amazon username",
-            default_factory=lambda: settings.amazon_user,
+            default_factory=lambda: get_settings().amazon_user,
         ),
     ],
     amazon_password: Annotated[
         str,
         Argument(
             help="Amazon password",
-            default_factory=lambda: settings.amazon_password.get_secret_value(),
+            default_factory=lambda: get_settings().amazon_password.get_secret_value(),
         ),
     ],
 ) -> None:
@@ -210,13 +212,13 @@ def new_ynamazon(  # noqa: C901
             config.amazon_user = amazon_user
         if amazon_password is not None:
             config.amazon_password = SecretStr(amazon_password)
-        cli_settings = settings.model_copy(update=config.model_dump())
+        cli_settings = get_settings().model_copy(update=config.model_dump())
     else:
         assert ynab_api_key is not None, "YNAB API key is required"
         assert ynab_budget_id is not None, "YNAB Budget ID is required"
         assert amazon_user is not None, "Amazon username is required"
         assert amazon_password is not None, "Amazon password is required"
-        cli_settings = settings.model_copy(
+        cli_settings = get_settings().model_copy(
             update={
                 "ynab_api_key": SecretApiKey(ynab_api_key),
                 "ynab_budget_id": SecretBudgetId(ynab_budget_id),
@@ -235,7 +237,7 @@ def new_ynamazon(  # noqa: C901
             budget_id=cli_settings.ynab_budget_id.get_secret_value(),
         )
     except YnabSetupError as e:
-        console.print(f"[bold red]Settings error: {e}[/]")
+        console.print(f"[bold red]get_settings() error: {e}[/]")
         console.print(
             "[bold red]Please check your .env file or use the --config option to specify a config file.[/]"
         )
@@ -248,7 +250,7 @@ def new_ynamazon(  # noqa: C901
             debug=debug,
         )
     except ValidationError as e:
-        console.print(f"[bold red]Settings error: {e}[/]")
+        console.print(f"[bold red]get_settings() error: {e}[/]")
         console.print(
             "[bold red]Please check your .env file or use the --config option to specify a config file.[/]"
         )

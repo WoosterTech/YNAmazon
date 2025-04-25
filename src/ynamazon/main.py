@@ -14,7 +14,7 @@ from ynamazon.amazon_transactions import (
 from ynamazon.ynab_memo import process_memo
 
 from .exceptions import YnabSetupError
-from .settings import settings
+from .settings import get_settings
 from .ynab_transactions import default_configuration as ynab_configuration
 from .ynab_transactions import (
     get_ynab_transactions,
@@ -114,7 +114,7 @@ def process_transactions(
     """Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos."""
     amazon_config = amazon_config or AmazonConfig()
     ynab_config = ynab_config or ynab_configuration
-    budget_id = budget_id or settings.ynab_budget_id.get_secret_value()
+    budget_id = budget_id or get_settings().ynab_budget_id.get_secret_value()
 
     console = Console()
 

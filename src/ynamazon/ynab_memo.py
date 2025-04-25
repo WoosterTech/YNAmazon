@@ -11,7 +11,7 @@ from ynamazon.prompts import (
     AMAZON_SUMMARY_PLAIN_PROMPT,
     AMAZON_SUMMARY_SYSTEM_PROMPT,
 )
-from ynamazon.settings import settings
+from ynamazon.settings import get_settings
 
 from .exceptions import (
     InvalidOpenAIAPIKey,
@@ -49,14 +49,11 @@ def generate_ai_summary(
         Exception: For other OpenAI API errors
     """
     # Check if OpenAI key is available
-    if (
-        settings.openai_api_key is None
-        or not settings.openai_api_key.get_secret_value()
-    ):
+    if get_settings().openai_api_key is None:
         raise MissingOpenAIAPIKey("OpenAI API key not found")
 
     # Create client
-    client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
+    client = OpenAI(api_key=get_settings().get_secret_value("openai_api_key"))
 
     # Prepare content for summarization
     partial_order_note = ""
@@ -69,7 +66,7 @@ def generate_ai_summary(
     # Select the appropriate prompt based on markdown setting
     user_prompt = (
         AMAZON_SUMMARY_MARKDOWN_PROMPT
-        if settings.ynab_use_markdown
+        if get_settings().ynab_use_markdown
         else AMAZON_SUMMARY_PLAIN_PROMPT
     )
 
@@ -308,12 +305,12 @@ def summarize_memo_with_ai(memo: str, order_url: str) -> str:
 def process_memo(memo: str) -> str:
     """Process a memo using AI summarization if enabled, otherwise use truncation if needed.
 
-    This function handles both markdown and non-markdown memos based on the settings.ynab_use_markdown setting:
+    This function handles both markdown and non-markdown memos based on the get_settings().ynab_use_markdown setting:
     - If markdown is enabled, it preserves markdown formatting in the output
     - If markdown is disabled, it strips all markdown formatting
 
     The processing strategy is:
-    1. If AI summarization is enabled (settings.use_ai_summarization):
+    1. If AI summarization is enabled (get_settings().use_ai_summarization):
        - Uses OpenAI to generate a concise summary
        - Preserves markdown formatting if enabled
        - Ensures the summary fits within YNAB's character limit
@@ -335,7 +332,7 @@ def process_memo(memo: str) -> str:
         logger.warning("No Amazon order URL found in memo")
         return original_memo
 
-    if settings.use_ai_summarization:
+    if get_settings().use_ai_summarization:
         logger.info("Using AI summarization")
         processed_memo = summarize_memo_with_ai(original_memo, order_url)
         if processed_memo:
@@ -367,7 +364,7 @@ def summarize_memo(memo: str) -> str:
         logger.warning("No Amazon order URL found in memo")
         return truncate_memo(original_memo)
 
-    if settings.use_ai_summarization:
+    if get_settings().use_ai_summarization:
         processed_memo = summarize_memo_with_ai(original_memo, order_url)
         if processed_memo:
             return processed_memo

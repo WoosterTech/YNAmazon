@@ -10,7 +10,7 @@ from amazonorders.transactions import AmazonTransactions
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from ynamazon.amazon_transactions import AmazonConfig
-from ynamazon.settings import settings
+from ynamazon.settings import get_settings
 from ynamazon.types_pydantic import AmazonSellerType
 from ynamazon.utilities import MISSING, Missing, getattr_path
 from ynamazon.utilities.bases import SimpleDict
@@ -35,7 +35,7 @@ class Item(Entity):
     quantity: Union[int, None] = None
 
     def __str__(self) -> str:
-        if settings.ynab_use_markdown:
+        if get_settings().ynab_use_markdown:
             return f"[{self.title}]({self.link})"
         return self.title
 

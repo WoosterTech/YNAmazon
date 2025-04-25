@@ -1,3 +1,4 @@
+from functools import lru_cache
 from os import PathLike
 from pathlib import Path
 from typing import Union
@@ -63,8 +64,20 @@ class Settings(BaseSettings):
             )
         return self
 
+    def get_secret_value(self, key: str) -> Union[str, None]:
+        """Get secret API key or budget ID."""
+        value = getattr(self, key)
+        if value is None:
+            return None
+        if not isinstance(value, SecretStr):
+            raise ValueError(f"{key} is not a SecretStr")
+        return value.get_secret_value()
 
-settings = Settings()  # type: ignore[call-arg]
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get settings from environment variables."""
+    return Settings()  # type: ignore[call-arg]
 
 
 class ConfigFile(BaseModel):

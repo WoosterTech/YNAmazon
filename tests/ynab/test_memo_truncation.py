@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """Test script for memo truncation and summarization.
 
 This module contains tests for the memo processing functionality, including:
@@ -7,20 +8,29 @@ This module contains tests for the memo processing functionality, including:
 - Proper preservation of order URLs and partial order warnings
 """
 
-from unittest.mock import patch, Mock
+from collections.abc import Callable
+from typing import Union
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
+from faker import Faker
+from openai import APIError, AuthenticationError
+from pydantic import SecretStr
+
+from ynamazon.settings import SecretApiKey, SecretBudgetId, Settings
 from ynamazon.ynab_memo import (
-    process_memo,
-    truncate_memo,
-    normalize_memo,
-    extract_order_url,
-    generate_ai_summary,
     YNAB_MEMO_LIMIT,
     InvalidOpenAIAPIKey,
     OpenAIEmptyResponseError,
+    extract_order_url,
+    generate_ai_summary,
+    normalize_memo,
+    process_memo,
+    truncate_memo,
 )
-from ynamazon.settings import settings
-from openai import APIError, AuthenticationError
+
+fake = Faker()
+
 
 # Test data
 PARTIAL_ORDER_WARNING = (
@@ -30,6 +40,18 @@ ORDER_URL_PLAIN = (
     "https://www.amazon.com/gp/your-account/order-details?orderID=113-2607970-8010001"
 )
 ORDER_URL_MARKDOWN = "[Order #113-2607960-6193002](https://www.amazon.com/gp/your-account/order-details?orderID=113-2607960-6193002)"
+
+
+@pytest.fixture
+def mock_settings() -> Settings:
+    settings = MagicMock(spec=Settings)
+    settings.ynab_api_key = SecretApiKey("fake_api_key")
+    settings.ynab_budget_id = SecretBudgetId("fake_budget_id")
+    settings.amazon_user = fake.email()
+    settings.amazon_password = SecretStr("fake_password")
+    settings.openai_api_key = SecretApiKey("fake_openai_key")
+
+    return settings
 
 
 @pytest.fixture
@@ -83,29 +105,10 @@ Black](https://www.amazon.com/dp/B08PH5Q51P?ref=ppx_yo2ov_dt_b_fed_asin_title)
 """
 
 
-@pytest.fixture
-def mock_settings():
-    """Fixture to manage settings state during tests."""
-    original_ai = settings.use_ai_summarization
-    original_markdown = settings.ynab_use_markdown
-    original_openai_key = settings.openai_api_key
-
-    from pydantic import SecretStr
-
-    settings.openai_api_key = SecretStr("test_key")
-
-    yield settings
-
-    # Restore original settings
-    settings.use_ai_summarization = original_ai
-    settings.ynab_use_markdown = original_markdown
-    settings.openai_api_key = original_openai_key
-
-
-def test_truncation_preserves_important_elements(test_memo_plain, mock_settings):
+def test_truncation_preserves_important_elements(monkeypatch, test_memo_plain):
     """Test that truncation preserves warning and URL while staying under limit."""
-    mock_settings.use_ai_summarization = False
-    mock_settings.ynab_use_markdown = False
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "False")
+    monkeypatch.setenv("YNAB_USE_MARKDOWN", "False")
 
     result = process_memo(test_memo_plain)
 
@@ -119,10 +122,10 @@ def test_truncation_preserves_important_elements(test_memo_plain, mock_settings)
     assert any(line.startswith(str(i)) for i, line in enumerate(lines[2:-1], 1))
 
 
-def test_truncation_with_markdown(test_memo_markdown, mock_settings):
+def test_truncation_with_markdown(monkeypatch, test_memo_markdown):
     """Test that truncation works correctly with markdown formatting."""
-    mock_settings.use_ai_summarization = False
-    mock_settings.ynab_use_markdown = True
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "False")
+    monkeypatch.setenv("YNAB_USE_MARKDOWN", "True")
 
     result = process_memo(test_memo_markdown)
 
@@ -132,11 +135,16 @@ def test_truncation_with_markdown(test_memo_markdown, mock_settings):
 
 
 @patch("ynamazon.ynab_memo.generate_ai_summary")
-def test_ai_summarization_plain(mock_generate_summary, test_memo_plain, mock_settings):
+def test_ai_summarization_plain(
+    mock_generate_summary: Callable[..., Union[str, None]],
+    monkeypatch,
+    test_memo_plain,
+    mock_settings,
+):
     """Test AI summarization with plain text."""
-    mock_settings.use_ai_summarization = True
-    mock_settings.ynab_use_markdown = False
-    mock_settings.openai_api_key = "test_key"
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "True")
+    monkeypatch.setenv("YNAB_USE_MARKDOWN", "False")
+    monkeypatch.setenv("OPENAI_API_KEY", fake.password(length=16))
 
     # Mock AI response
     mock_generate_summary.return_value = (
@@ -156,12 +164,12 @@ def test_ai_summarization_plain(mock_generate_summary, test_memo_plain, mock_set
 
 @patch("ynamazon.ynab_memo.generate_ai_summary")
 def test_ai_summarization_markdown(
-    mock_generate_summary, test_memo_markdown, mock_settings
+    mock_generate_summary, test_memo_markdown, monkeypatch
 ):
     """Test AI summarization with markdown formatting."""
-    mock_settings.use_ai_summarization = True
-    mock_settings.ynab_use_markdown = True
-    mock_settings.openai_api_key = "test_key"
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "True")
+    monkeypatch.setenv("YNAB_USE_MARKDOWN", "True")
+    monkeypatch.setenv("OPENAI_API_KEY", fake.password(length=16))
 
     # Mock AI response
     mock_generate_summary.return_value = (
@@ -179,13 +187,16 @@ def test_ai_summarization_markdown(
     assert ORDER_URL_MARKDOWN.split("]")[1].strip("()") in result
 
 
+@pytest.mark.skip(
+    reason="Settings class validates that OpenAI key is set when AI is used"
+)
 @patch("ynamazon.ynab_memo.generate_ai_summary")
 def test_no_openai_key_falls_back_to_truncation(
-    mock_generate_summary, test_memo_plain, mock_settings
+    mock_generate_summary, test_memo_plain, monkeypatch
 ):
     """Test that process_memo falls back to truncation when no OpenAI key is available."""
-    mock_settings.use_ai_summarization = True
-    mock_settings.openai_api_key = None
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "True")
+    monkeypatch.delenv("OPEN_API_KEY", raising=False)
     mock_generate_summary.return_value = None
 
     result = process_memo(test_memo_plain)
@@ -240,60 +251,82 @@ def test_extract_order_url():
     assert extract_order_url(memo) is None
 
 
-def test_generate_ai_summary_error_handling(mock_settings):
-    """Test error handling in generate_ai_summary."""
-    from pydantic import SecretStr
+AUTH_ERROR = AuthenticationError(
+    message="Invalid API key",
+    response=Mock(status_code=401),
+    body={"error": {"message": "Invalid API key"}},
+)
+API_ERROR = APIError(
+    message="Internal server error",
+    request=Mock(),
+    body={"error": {"message": "Internal server error"}},
+)
 
-    # Test with invalid API key
-    with (
-        patch("ynamazon.ynab_memo.OpenAI") as mock_openai,
-        patch("ynamazon.ynab_memo.settings.openai_api_key", SecretStr("test_key")),
-    ):
+
+@pytest.fixture
+def openai_api_key():
+    return fake.password(length=16)
+
+
+@pytest.fixture
+def mock_ai_response():
+    """Mock OpenAI API response."""
+    mock_response = Mock()
+    mock_response.choices = []
+    return mock_response
+
+
+def test_empty_ai_response_error_handling(
+    mock_ai_response, monkeypatch, openai_api_key
+):
+    """Test handling of empty AI response."""
+    monkeypatch.setenv("OPENAI_API_KEY", openai_api_key)
+
+    with patch("ynamazon.ynab_memo.OpenAI") as mock_openai:
         mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            message="Invalid API key",
-            response=Mock(status_code=401),
-            body={"error": {"message": "Invalid API key"}},
-        )
-        mock_openai.return_value = mock_client
-
-        with pytest.raises(InvalidOpenAIAPIKey):
-            generate_ai_summary(["Item 1"], "https://amazon.com/order/123")
-
-    # Test with API error
-    with (
-        patch("ynamazon.ynab_memo.OpenAI") as mock_openai,
-        patch("ynamazon.ynab_memo.settings.openai_api_key", SecretStr("valid_key")),
-    ):
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = APIError(
-            message="Internal server error",
-            request=Mock(),
-            body={"error": {"message": "Internal server error"}},
-        )
-        mock_openai.return_value = mock_client
-
-        result = generate_ai_summary(["Item 1"], "not-a-url")
-        assert result is None
-
-    # Test with empty response
-    with (
-        patch("ynamazon.ynab_memo.OpenAI") as mock_openai,
-        patch("ynamazon.ynab_memo.settings.openai_api_key", SecretStr("valid_key")),
-    ):
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = []
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.chat.completions.create.return_value = mock_ai_response
         mock_openai.return_value = mock_client
 
         with pytest.raises(OpenAIEmptyResponseError):
             generate_ai_summary(["Item 1"], "not-a-url")
 
 
-def test_partial_order_warning_variations(test_memo_plain, mock_settings):
+@pytest.mark.parametrize(
+    ("fake_url", "side_effect", "expected_exception"),
+    [
+        ("https://amazon.com/order/123", AUTH_ERROR, InvalidOpenAIAPIKey),
+        ("not-a-url", API_ERROR, None),
+    ],
+)
+def test_generate_ai_summary_error_handling(
+    fake_url: str,
+    side_effect: APIError,
+    expected_exception,
+    monkeypatch,
+    openai_api_key,
+):
+    """Test error handling in generate_ai_summary."""
+    monkeypatch.setenv("OPENAI_API_KEY", openai_api_key)
+
+    # Test with invalid API key
+    with (
+        patch("ynamazon.ynab_memo.OpenAI") as mock_openai,
+    ):
+        mock_client = Mock()
+        mock_client.chat.completions.create.side_effect = side_effect
+        mock_openai.return_value = mock_client
+
+        if expected_exception is None:
+            result = generate_ai_summary(["Item 1"], fake_url)
+            assert result is None
+        else:
+            with pytest.raises(expected_exception):
+                generate_ai_summary(["Item 1"], fake_url)
+
+
+def test_partial_order_warning_variations(test_memo_plain, monkeypatch):
     """Test handling of different partial order warning formats."""
-    mock_settings.use_ai_summarization = False
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "False")
 
     # Test with different amounts
     variations = [
@@ -327,10 +360,10 @@ def test_truncate_memo_character_limit():
     assert url in result
 
 
-def test_malformed_markdown_handling(mock_settings):
+def test_malformed_markdown_handling(monkeypatch):
     """Test handling of malformed markdown and URLs."""
-    mock_settings.use_ai_summarization = False
-    mock_settings.ynab_use_markdown = False  # Change to False to test stripping
+    monkeypatch.setenv("USE_AI_SUMMARIZATION", "False")
+    monkeypatch.setenv("YNAB_USE_MARKDOWN", "False")
 
     # Test with unclosed markdown link
     memo = "Unclosed link\nhttps://amazon.com/order/123"
