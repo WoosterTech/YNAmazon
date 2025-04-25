@@ -19,7 +19,10 @@ from ynamazon.ynab_transactions import (
     markdown_formatted_title,
     update_ynab_transaction,
 )
-from ynamazon.ynab_memo import process_memo
+try:
+    from ynamazon.ynab_memo import process_memo
+except ImportError:
+    pass
 
 if TYPE_CHECKING:
     from ynab import Configuration
@@ -102,16 +105,17 @@ def process_transactions(  # noqa: C901
 
         memo.append(
             markdown_formatted_link(
-                f"Order #{amazon_tran.order_number}", amazon_tran.order_link
+                f"\nOrder #{amazon_tran.order_number}", amazon_tran.order_link
             )
         )
 
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
         
-        # Process the memo and use new AI summary or trucation if needed
-        memo = process_memo(str(memo))
-        
+        # Only use the AI processing if OpenAI is installed
+        if 'process_memo' in globals():
+            memo = process_memo(str(memo))
+ 
         console.print("[bold u green]Processed Memo:[/]")
         console.print(memo)
 
