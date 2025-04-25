@@ -5,25 +5,26 @@ from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.prompt import Confirm
 
-from .amazon_transactions import (
+from ynamazon.amazon_transactions import (
     AmazonConfig,
     AmazonTransactionWithOrderInfo,
     get_amazon_transactions,
     locate_amazon_transaction_by_amount,
 )
+from ynamazon.ynab_memo import process_memo
+
 from .exceptions import YnabSetupError
 from .settings import settings
+from .ynab_transactions import default_configuration as ynab_configuration
 from .ynab_transactions import (
-    YNAB_MAX_MEMO_LENGTH,
     get_ynab_transactions,
     markdown_formatted_link,
     markdown_formatted_title,
     update_ynab_transaction,
 )
-from .ynab_transactions import default_configuration as ynab_configuration
 
 if TYPE_CHECKING:
-    from ynab import Configuration
+    from ynab.configuration import Configuration
 
 
 class MultiLineText(BaseModel):
@@ -157,18 +158,11 @@ def process_transactions(
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
 
-        # Check if memo needs truncation and display before/after if needed
-        if len(str(memo)) > YNAB_MAX_MEMO_LENGTH:
-            console.print(
-                f"[yellow]Warning: Memo exceeds YNAB's 500 character limit ({len(str(memo))} characters)[/]"
-            )
-            original_memo = str(memo)
-            memo_str = truncate_memo(original_memo)
-            console.print("[bold cyan]Memo after truncation:[/]")
-            console.print(memo)
-            console.print(
-                f"[green]Truncated from {len(original_memo)} to {len(memo_str)} characters[/]"
-            )
+        # Process the memo and use new AI summary or trucation if needed
+        memo_str = process_memo(str(memo))
+
+        console.print("[bold u green]Processed Memo:[/]")
+        console.print(memo_str)
 
         if amazon_tran.completed_date != ynab_tran.var_date:
             console.print(
@@ -191,7 +185,7 @@ def process_transactions(
         if not update_transaction:
             console.print("[yellow]Skipping YNAB transaction update...[/]\n\n")
             console.print("[cyan i]Memo Preview[/]:")
-            console.print(str(memo_str))
+            console.print(memo_str)
             continue
 
         console.print("[green]Updating YNAB transaction memo...[/]")
@@ -223,6 +217,8 @@ def create_memo(amazon_tran: AmazonTransactionWithOrderInfo) -> MultiLineText:
         markdown_formatted_link(
             f"Order #{amazon_tran.order_number}", amazon_tran.order_link
         )
+        if amazon_tran.order_link is not None
+        else ""
     )
 
     return memo

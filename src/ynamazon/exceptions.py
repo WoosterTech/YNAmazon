@@ -4,9 +4,19 @@ class YnabSetupError(Exception):
     pass
 
 
-class MissingOptionalSettingError(Exception):
-    """Exception raised when a setting only required for a specific task is missing."""
+class MissingOpenAIAPIKey(Exception):
+    """Raised when OpenAI API key is required but not found."""
+
+    pass
 
 
-class InvalidSettingError(Exception):
-    """Exception raised when a setting is invalid."""
+class InvalidOpenAIAPIKey(Exception):
+    """Raised when OpenAI API key is invalid or authentication fails."""
+
+    pass
+
+
+class OpenAIEmptyResponseError(Exception):
+    """Raised when OpenAI returns an empty or invalid response."""
+
+    pass

@@ -1,12 +1,15 @@
 from collections.abc import Iterable
 from decimal import Decimal
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from loguru import logger
 from pydantic import AnyUrl, BaseModel, Field
 from rich import print as rprint
 from rich.table import Table
-from ynab import ApiClient, Configuration, PayeesApi, TransactionsApi
+from ynab.api.payees_api import PayeesApi
+from ynab.api.transactions_api import TransactionsApi
+from ynab.api_client import ApiClient
+from ynab.configuration import Configuration
 from ynab.models.existing_transaction import ExistingTransaction
 from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
@@ -14,9 +17,8 @@ from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 from ynab.models.transaction_flag_color import TransactionFlagColor
 
 from ynamazon.amazon.models import Transaction
-
-from .exceptions import YnabSetupError
-from .settings import settings
+from ynamazon.exceptions import YnabSetupError
+from ynamazon.settings import settings
 
 default_configuration = Configuration(
     access_token=settings.ynab_api_key.get_secret_value()
@@ -163,8 +165,8 @@ def translate_hybrid_to_temp(
 
 
 def get_payees_by_budget(
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> list["Payee"]:
     """Returns a list of payees by budget ID.
 
@@ -185,8 +187,8 @@ def get_payees_by_budget(
 
 def get_transactions_by_payee(
     payee: Payee,
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> list[TempYnabTransaction]:
     """Returns a list of transactions by payee.
 
@@ -210,8 +212,8 @@ def get_transactions_by_payee(
 
 
 def get_ynab_transactions(
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> tuple[list[TempYnabTransaction], "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
@@ -261,8 +263,8 @@ def update_ynab_transaction(
     transaction: "HybridTransaction",
     memo: str,
     payee_id: str,
-    configuration: Configuration | None = None,
-    budget_id: str | None = None,
+    configuration: Union[Configuration, None] = None,
+    budget_id: Union[str, None] = None,
 ) -> None:
     """Updates a YNAB transaction with the given memo and payee ID.
 
@@ -278,7 +280,38 @@ def update_ynab_transaction(
     data = PutTransactionWrapper(
         transaction=ExistingTransaction.model_validate(transaction.to_dict())
     )
-    data.transaction.memo = memo
+
+    # Convert memo to string if it's a MultiLineText object
+    memo_str = str(memo)
+
+    # Ensure memo doesn't exceed 500 character limit
+    if len(memo_str) > 500:
+        logger.warning(
+            f"Memo exceeds 500 character limit ({len(memo_str)} chars). Truncating..."
+        )
+        # Keep the important parts - first warning line, and the URL at the end
+        lines = memo_str.split("\n")
+
+        # Extract the URL at the end (it must be preserved)
+        url_line = lines[-1]
+
+        # Keep the warning header if it exists
+        header = ""
+        if len(lines) > 0 and "-This transaction doesn" in lines[0]:
+            header = lines[0] + "\n\n"
+
+        # Calculate remaining space for content
+        remaining_space = 500 - len(header) - len(url_line) - 4  # 4 chars for "...\n"
+
+        # Get middle content (item list) and truncate if needed
+        middle_content = "\n".join(lines[1:-1])
+        if len(middle_content) > remaining_space:
+            middle_content = middle_content[:remaining_space] + "..."
+
+        # Combine the parts to stay under 500 chars
+        memo_str = f"{header}{middle_content}\n{url_line}"
+
+    data.transaction.memo = memo_str
     data.transaction.payee_id = payee_id
     data.transaction.flag_color = TransactionFlagColor.ORANGE
     with ApiClient(configuration=configuration) as api_client:
@@ -294,7 +327,7 @@ _T = TypeVar("_T", bound=Payee)
 
 def find_item_by_attribute(
     items: Iterable[_T], attribute: str, value: Any
-) -> _T | None:
+) -> Union[_T, None]:
     """Finds an item in a list by its attribute value.
 
     Args:
@@ -333,7 +366,7 @@ def print_ynab_transactions(transactions: list[TempYnabTransaction]) -> None:
     rprint(table)
 
 
-def markdown_formatted_title(title: str, url: str | AnyUrl) -> str:
+def markdown_formatted_title(title: str, url: Union[str, AnyUrl]) -> str:
     """Returns a formatted item title in markdown or raw format, dependent on ynab_use_markdown.
 
     Args:
@@ -349,7 +382,7 @@ def markdown_formatted_title(title: str, url: str | AnyUrl) -> str:
     return title
 
 
-def markdown_formatted_link(title: str, url: str | AnyUrl) -> str:
+def markdown_formatted_link(title: str, url: Union[str, AnyUrl]) -> str:
     """Returns a link in markdown or raw format, dependent on ynab_use_markdown.
 
     Args:

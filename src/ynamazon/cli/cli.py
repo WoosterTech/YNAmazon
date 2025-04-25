@@ -3,20 +3,20 @@
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 from rich import print as rprint
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from typer import Argument, Context, Option, Typer
+from typer import Argument, Context, Exit, Option, Typer
 from typer import run as typer_run
-from ynab import Configuration
+from ynab.configuration import Configuration
 
 from ynamazon.amazon.models import Orders, Transaction, Transactions
 from ynamazon.amazon_transactions import AmazonConfig, get_amazon_transactions
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.main import process_transactions
-from ynamazon.settings import ConfigFile, settings
+from ynamazon.settings import ConfigFile, SecretApiKey, SecretBudgetId, settings
 from ynamazon.ynab_transactions import (
     TempYnabTransaction,
     get_ynab_transactions,
@@ -202,40 +202,57 @@ def new_ynamazon(  # noqa: C901
     console = Console()
     if config_path is not None:
         config = ConfigFile.from_config(config_path)
-        ynab_api_key = ynab_api_key or config.ynab_api_key
-        if hasattr(ynab_api_key, "get_secret_value"):
-            ynab_api_key = ynab_api_key.get_secret_value()
-
-        ynab_budget_id = ynab_budget_id or config.ynab_budget_id
-        if hasattr(ynab_budget_id, "get_secret_value"):
-            ynab_budget_id = ynab_budget_id.get_secret_value()
-        amazon_user = amazon_user or config.amazon_user
-        amazon_secret = (
-            SecretStr(amazon_password)
-            if amazon_password is not None
-            else config.amazon_password
+        if ynab_api_key is not None:
+            config.ynab_api_key = SecretApiKey(ynab_api_key)
+        if ynab_budget_id is not None:
+            config.ynab_budget_id = SecretBudgetId(ynab_budget_id)
+        if amazon_user is not None:
+            config.amazon_user = amazon_user
+        if amazon_password is not None:
+            config.amazon_password = SecretStr(amazon_password)
+        cli_settings = settings.model_copy(update=config.model_dump())
+    else:
+        assert ynab_api_key is not None, "YNAB API key is required"
+        assert ynab_budget_id is not None, "YNAB Budget ID is required"
+        assert amazon_user is not None, "Amazon username is required"
+        assert amazon_password is not None, "Amazon password is required"
+        cli_settings = settings.model_copy(
+            update={
+                "ynab_api_key": SecretApiKey(ynab_api_key),
+                "ynab_budget_id": SecretBudgetId(ynab_budget_id),
+                "amazon_user": amazon_user,
+                "amazon_password": SecretStr(amazon_password),
+            }
         )
 
-    ynab_api_key = ynab_api_key or settings.ynab_api_key.get_secret_value()
-    ynab_budget_id = ynab_budget_id or settings.ynab_budget_id.get_secret_value()
-    amazon_user = amazon_user or settings.amazon_user
-    amazon_secret = amazon_secret or settings.amazon_password
-
-    print(f"amazon_user: {amazon_user}")
-
-    ynab_config = Configuration(access_token=ynab_api_key)
+    ynab_config = Configuration(
+        access_token=cli_settings.ynab_api_key.get_secret_value()
+    )
 
     try:
         ynab_trans, amazon_with_memo_payee = get_ynab_transactions(
-            configuration=ynab_config, budget_id=ynab_budget_id
+            configuration=ynab_config,
+            budget_id=cli_settings.ynab_budget_id.get_secret_value(),
         )
-    except YnabSetupError:
-        console.print("[bold red]No matching Transactions found in YNAB. Exiting.[/]")
-        return
+    except YnabSetupError as e:
+        console.print(f"[bold red]Settings error: {e}[/]")
+        console.print(
+            "[bold red]Please check your .env file or use the --config option to specify a config file.[/]"
+        )
+        raise Exit(code=1) from None
 
-    amazon_config = AmazonConfig(
-        username=amazon_user, password=amazon_secret, debug=debug
-    )
+    try:
+        amazon_config = AmazonConfig(
+            username=cli_settings.amazon_user,
+            password=cli_settings.amazon_password,
+            debug=debug,
+        )
+    except ValidationError as e:
+        console.print(f"[bold red]Settings error: {e}[/]")
+        console.print(
+            "[bold red]Please check your .env file or use the --config option to specify a config file.[/]"
+        )
+        raise Exit(code=1) from None
     amazon_session = amazon_config.amazon_session(debug=debug)
     if not test:
         if force_logout:
@@ -261,10 +278,10 @@ def new_ynamazon(  # noqa: C901
 
     else:
         orders_file = Path(
-            "C:\\Users\\KW131407\\repos\\YNAmazon\\src\ynamazon\\amazon\\orders.json"
+            "C:\\Users\\KW131407\\repos\\YNAmazon\\src\\ynamazon\\amazon\\orders.json"
         )
         transactions_file = Path(
-            "C:\\Users\\KW131407\\repos\\YNAmazon\\src\ynamazon\\amazon\\transactions.json"
+            "C:\\Users\\KW131407\\repos\\YNAmazon\\src\\ynamazon\\amazon\\transactions.json"
         )
         console.print("[bold cyan]Using test data...[/]")
         orders = Orders.model_validate_json(orders_file.read_text())
@@ -364,7 +381,12 @@ def select_matching_transaction(
     for idx, match in enumerate([trans for _, trans in matches], start=1):
         valid_choices.append(str(idx))
         match_order = match.order
-        assert match_order is not None, "Order is None"
+        if match_order is None:
+            console.print(
+                f"[bold red]**** No order found for transaction {match.completed_date} ${match.grand_total:.2f}[/]"
+            )
+            console.log(f"Transaction: {match}")
+            continue
         if match_order.order_details_link is None:
             order_number = match_order.order_number
         else:

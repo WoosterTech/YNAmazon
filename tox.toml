@@ -1,0 +1,15 @@
+required = ["tox>=4"]
+envlist = ["py39", "py310", "py311", "py312", "pre-commit"]
+
+[env_run_base]
+runner = "uv-venv-lock-runner"
+description = "Run tests in a virtual environment"
+dependency_groups = ["dev", "test"]
+commands = [["pytest", { replace = "posargs", default = ["tests"], extend = true}]]
+
+[env.pre-commit]
+description = "Run pre-commit hooks"
+deps = ["pre-commit"]
+package = "python"
+basepython = ["py312"]
+commands = [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]]
