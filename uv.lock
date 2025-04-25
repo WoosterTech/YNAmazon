@@ -21,29 +21,15 @@ wheels = [
 
 [[package]]
 name = "amazoncaptcha"
-source = { editable = "../amazoncaptcha" }
+version = "0.5.11"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pillow" },
     { name = "requests" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "pillow", specifier = ">=9.0.1" },
-    { name = "requests", specifier = ">=2.27.1" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "deptry", specifier = ">=0.8.0" },
-    { name = "pre-commit", specifier = ">=2.21.0" },
-    { name = "pyright", specifier = ">=1.1.399" },
-    { name = "ruff", specifier = ">=0.11.6" },
-]
-docs = [{ name = "sphinx-rtd-theme", specifier = ">=2.0.0" }]
-test = [
-    { name = "selenium", specifier = ">=4.11.2" },
-    { name = "webdriver-manager", specifier = ">=4.0.2" },
+sdist = { url = "https://files.pythonhosted.org/packages/9a/7a/ccd80836e99ca72d23368e6d5210a34f34793de33da866f23c7931bbe7b5/amazoncaptcha-0.5.11.tar.gz", hash = "sha256:1938e977ebebd83d83cc01478a705f2ecf0d0c5d1189924ff954ee973c25337e", size = 878262 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/d3/6aec247ecede99ca3f591a9d5e6e581d1e73f5a5b3a66b2c4abfb672c2d2/amazoncaptcha-0.5.11-py3-none-any.whl", hash = "sha256:0e6d33154fc0238ca0d794a02289cff154fc8a0ec64243c36951558bbb7da1de", size = 937452 },
 ]
 
 [[package]]
@@ -1263,7 +1249,6 @@ name = "ynamazon"
 source = { editable = "." }
 dependencies = [
     { name = "amazon-orders" },
-    { name = "amazoncaptcha" },
     { name = "furl" },
     { name = "loguru" },
     { name = "pydantic", extra = ["email"] },
@@ -1304,7 +1289,6 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "amazon-orders", specifier = ">=3.2.15" },
-    { name = "amazoncaptcha", editable = "../amazoncaptcha" },
     { name = "furl", specifier = ">=2.1.4" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "openai", marker = "extra == 'ai'", specifier = ">=1.12.0" },

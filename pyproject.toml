@@ -18,7 +18,6 @@ dependencies = [
     "requests>=2.30.0",
     "toml>=0.10.2",
     "pyyaml>=6.0.2",
-    "amazoncaptcha",
 ]
 
 [project.optional-dependencies]
@@ -70,9 +69,6 @@ build-backend = "hatchling.build"
 [[tool.mypy.overrides]]
 module = ["amazonorders.*"]
 ignore_missing_imports = true
-
-[tool.uv.sources]
-amazoncaptcha = { path = "../amazoncaptcha", editable = true }
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["amazoncaptcha"]  # custom package to override what's used in amazon-orders
