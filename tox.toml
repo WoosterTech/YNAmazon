@@ -1,4 +1,4 @@
-required = ["tox>=4"]
+required = ["tox>=4", "tox-uv>=1.25.0"]
 envlist = ["py39", "py310", "py311", "py312", "pre-commit"]
 
 [env_run_base]
@@ -10,7 +10,6 @@ commands = [["pytest", { replace = "posargs", default = ["tests"], extend = true
 
 [env.pre-commit]
 description = "Run pre-commit hooks"
-deps = ["pre-commit"]
-package = "python"
+deps = ["pre-commit-uv"]
 basepython = ["py312"]
 commands = [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]]
