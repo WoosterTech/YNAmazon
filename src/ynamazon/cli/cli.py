@@ -23,10 +23,15 @@ from ynamazon.ynab_transactions import (
     update_ynab_transaction,
 )
 
-from . import utils
+from . import target, utils
 
 cli = Typer(rich_markup_mode="rich")
 cli.add_typer(utils.app, name="utils", help="[bold cyan]Utility commands[/]")
+cli.add_typer(
+    target.app,
+    name="target",
+    help="[bold cyan]Target order and transaction commands[/]",
+)
 
 
 @cli.command("print-ynab")
