@@ -19,6 +19,7 @@ from ynamazon.main import process_transactions
 from ynamazon.settings import ConfigFile, SecretApiKey, SecretBudgetId, get_settings
 from ynamazon.ynab_transactions import (
     TempYnabTransaction,
+    get_default_ynab_config,
     get_ynab_transactions,
     update_ynab_transaction,
 )
@@ -227,15 +228,14 @@ def new_ynamazon(  # noqa: C901
             }
         )
 
-    ynab_config = Configuration(
-        access_token=cli_settings.ynab_api_key.get_secret_value()
-    )
+    ynab_config = get_default_ynab_config()
 
     try:
         ynab_trans, amazon_with_memo_payee = get_ynab_transactions(
             configuration=ynab_config,
-            budget_id=cli_settings.ynab_budget_id.get_secret_value(),
+            budget_id=cli_settings.get_secret_value("ynab_budget_id"),
         )
+        console.print(f"[bold green]Found {len(ynab_trans)} transactions.[/]")
     except YnabSetupError as e:
         console.print(f"[bold red]get_settings() error: {e}[/]")
         console.print(
