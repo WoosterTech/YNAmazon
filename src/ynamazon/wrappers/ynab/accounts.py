@@ -1,36 +1,12 @@
-import abc
-from decimal import Decimal
-import enum
-from typing import Annotated, Any, Generic, TypeVar
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    StrictBool,
-    StrictInt,
-    StrictStr,
-    model_validator,
-)
 import datetime as dt
+import enum
+from decimal import Decimal
+from typing import Annotated, Union
 
+from pydantic import Field, StrictBool, StrictInt, StrictStr
 
-class YnabBase(BaseModel, abc.ABC):
-    """Base class for YNAB."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-_F = TypeVar("_F")
-
-
-class Field(BaseModel, Generic[_F], abc.ABC):
-    value: _F
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_value(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return {"value": data}
-        return data
+from ynamazon.wrappers.ynab.common import YnabBase
+from ynamazon.wrappers.ynab.payees import Payee
 
 
 class AccountType(enum.StrEnum):
@@ -62,7 +38,7 @@ class Account(YnabBase):
     balance: StrictInt
     cleared_balance: StrictInt
     uncleared_balance: StrictInt
-    transfer_payee: "Payee" | None = None
+    transfer_payee: Union[Payee, None] = None
     direct_import_linked: StrictBool | None = None
     direct_import_in_error: StrictBool | None = None
     last_reconciled_at: dt.datetime | None = None
@@ -86,42 +62,3 @@ class Account(YnabBase):
     def uncleared_balance_decimal(self) -> Decimal:
         """Returns the uncleared balance in currency."""
         return self._milliunit_to_decimal("uncleared_balance")
-
-
-class Payee(YnabBase):
-    id: StrictStr
-    name: StrictStr
-
-
-class MemoField(Field[str]):
-    """Memo field for YNAB."""
-
-
-class TransactionClearedStatus(enum.StrEnum):
-    """The cleared status of the transaction."""
-
-    CLEARED = "cleared"
-    UNCLEARED = "uncleared"
-    RECONCILED = "reconciled"
-
-
-class TransactionFlagColor(enum.StrEnum):
-    """The flag color of the transaction."""
-
-    RED = "red"
-    ORANGE = "orange"
-    YELLOW = "yellow"
-    GREEN = "green"
-    BLUE = "blue"
-    PURPLE = "purple"
-
-
-class BaseTransaction(YnabBase):
-    var_date: dt.date | None = None
-    amount: StrictInt
-    memo: MemoField | None = None
-    cleared: TransactionClearedStatus | None = None
-    approved: StrictBool | None = None
-    flag_color: TransactionFlagColor | None = None
-    account_id: StrictStr | None = None
-    payee_id: StrictStr | None = None
