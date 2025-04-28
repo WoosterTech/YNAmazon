@@ -1,7 +1,14 @@
-from ynamazon.ynab_transactions import (  # type: ignore[import-untyped]
-    markdown_formatted_link,
-    markdown_formatted_title,
-)
+# pyright: reportAttributeAccessIssue=false
+
+
+from ynamazon.ynab_transactions import markdown_formatted_link, markdown_formatted_title
+
+
+def test_default_settings_env():
+    """Just a sanity check to ensure that the environment is setup properly from conftest.py."""
+    import os
+
+    assert os.getenv("YNAB_API_KEY") is not None, "YNAB_API_KEY is not set"
 
 
 def test_markdown_formatted_link_use_markdown(monkeypatch):

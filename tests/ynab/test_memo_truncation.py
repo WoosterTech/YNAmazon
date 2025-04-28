@@ -28,6 +28,7 @@ from ynamazon.ynab_memo import (
     process_memo,
     truncate_memo,
 )
+from ynamazon.ynab_transactions import MemoField, simple_memo_truncate
 
 fake = Faker()
 
@@ -139,7 +140,6 @@ def test_ai_summarization_plain(
     mock_generate_summary: Callable[..., Union[str, None]],
     monkeypatch,
     test_memo_plain,
-    mock_settings,
 ):
     """Test AI summarization with plain text."""
     monkeypatch.setenv("USE_AI_SUMMARIZATION", "True")
@@ -375,6 +375,50 @@ def test_malformed_markdown_handling(monkeypatch):
     memo = "Order #123 (not-a-url)"
     result = process_memo(memo)
     assert "Order #123" in result
+
+
+@pytest.mark.skip(reason="Function needs more work")
+def test_simple_memo_truncate():
+    memo_field = MemoField(
+        header_lines=[PARTIAL_ORDER_WARNING],
+        item_lines=[
+            (
+                1,
+                "[AIRMEGA Max 2 Air Purifier Replacement Filter Set for 300/300S](https://www.amazon.com/dp/B01C9RIAEE?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                2,
+                "[COWAY AP-1512HH & 200M Air Purifier Filter Replacement, Fresh Starter Pack, 2 Fresh Starter Deodorization Filters and 1 True HEPA Filter, 1 Pack, Black](https://www.amazon.com/dp/B00C7WMQTW?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                3,
+                "[Chemical Guys ACC138 Secondary Container Dilution Bottle with Heavy Duty Sprayer, 16 oz, 3 Pack](https://www.amazon.com/dp/B06WVJG4H8?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                4,
+                "[Coway Airmega 150 Air Purifier Replacement Filter Set, Green True HEPA and Active Carbon Filter, AP-1019C-FP](https://www.amazon.com/dp/B08JPCDVK8?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                5,
+                "[Coway Airmega 230/240 Air Purifier Replacement Filter Set, Max 2 Green True HEPA and Active Carbon Filter](https://www.amazon.com/dp/B0B9WX6L97?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                6,
+                "[Nakee Butter Focus Nut Butter: High-Protein, Low-Carb Keto Peanut Butter with Cacao & MCT Oil, 12g Protein - On-The-Go, 6 Packs.](https://www.amazon.com/dp/B072FGTT8P?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+            (
+                7,
+                "[ScanSnap iX1600 Wireless or USB High-Speed Cloud Enabled Document, Photo & Receipt Scanner with Large Touchscreen and Auto Document Feeder for Mac or PC, 17 watts, Black](https://www.amazon.com/dp/B08PH5Q51P?ref=ppx_yo2ov_dt_b_fed_asin_title)",
+            ),
+        ],
+        footer_lines=[ORDER_URL_MARKDOWN],
+    )
+
+    assert len(memo_field) >= YNAB_MEMO_LIMIT, "Memo is shorter than expected"
+
+    truncated, memo_text = simple_memo_truncate(memo_field)
+    assert len(memo_text) <= YNAB_MEMO_LIMIT, "Truncated memo exceeds YNAB limit"
+    assert truncated, "Memo was not truncated"
 
 
 if __name__ == "__main__":
