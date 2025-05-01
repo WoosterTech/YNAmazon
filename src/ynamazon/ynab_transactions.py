@@ -1,7 +1,7 @@
 import re
 from collections.abc import Iterable
 from decimal import Decimal
-from typing import Any, Literal, TypedDict, TypeVar, Union
+from typing import Any, Literal, TypedDict, TypeVar
 
 from loguru import logger
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
@@ -76,8 +76,8 @@ class MemoItem(BaseModel):
     def render(
         self,
         *,
-        max_length: Union[int, None] = None,
-        use_markdown: Union[bool, None] = None,
+        max_length: int | None = None,
+        use_markdown: bool | None = None,
     ) -> str:
         """Renders the item as a string.
 
@@ -499,7 +499,7 @@ def print_ynab_transactions(transactions: list[TempYnabTransaction]) -> None:
 
 
 def markdown_formatted_title(
-    title: str, url: Union[str, AnyUrl], *, use_markdown: Union[bool, None] = None
+    title: str, url: str | AnyUrl, *, use_markdown: bool | None = None
 ) -> str:
     """Returns a formatted item title in markdown or raw format, dependent on ynab_use_markdown.
 
@@ -521,10 +521,10 @@ def markdown_formatted_title(
 
 def markdown_formatted(
     title: str,
-    url: Union[str, AnyUrl],
+    url: str | AnyUrl,
     key: Literal["title", "url"],
     *,
-    use_markdown: Union[bool, None] = None,
+    use_markdown: bool | None = None,
 ) -> str:
     """Returns a formatted item title or URL in markdown or raw format, dependent on ynab_use_markdown.
 
@@ -549,7 +549,7 @@ def markdown_formatted(
 
 
 def markdown_formatted_link(
-    title: str, url: Union[str, AnyUrl], *, use_markdown: Union[bool, None] = None
+    title: str, url: str | AnyUrl, *, use_markdown: bool | None = None
 ) -> str:
     """Returns a link in markdown or raw format, dependent on ynab_use_markdown.
 
