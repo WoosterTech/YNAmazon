@@ -10,8 +10,8 @@ This module contains tests for the memo processing functionality, including:
 from unittest.mock import patch, Mock
 import pytest
 from ynamazon.ynab_memo import (
-    process_memo, 
-    truncate_memo, 
+    process_memo,
+    truncate_memo,
     normalize_memo,
     extract_order_url,
     generate_ai_summary,
@@ -82,12 +82,12 @@ def mock_settings():
     original_ai = settings.use_ai_summarization
     original_markdown = settings.ynab_use_markdown
     original_openai_key = settings.openai_api_key
-    
+
     from pydantic import SecretStr
     settings.openai_api_key = SecretStr("test_key")
-    
+
     yield settings
-    
+
     # Restore original settings
     settings.use_ai_summarization = original_ai
     settings.ynab_use_markdown = original_markdown
@@ -97,13 +97,13 @@ def test_truncation_preserves_important_elements(test_memo_plain, mock_settings)
     """Test that truncation preserves warning and URL while staying under limit."""
     mock_settings.use_ai_summarization = False
     mock_settings.ynab_use_markdown = False
-    
+
     result = process_memo(test_memo_plain)
-    
+
     # Check important elements are preserved
     assert PARTIAL_ORDER_WARNING in result
     assert ORDER_URL_PLAIN in result
-    
+
     # Check structure
     lines = result.split('\n')
     assert "Items" in lines[1]
@@ -113,9 +113,9 @@ def test_truncation_with_markdown(test_memo_markdown, mock_settings):
     """Test that truncation works correctly with markdown formatting."""
     mock_settings.use_ai_summarization = False
     mock_settings.ynab_use_markdown = True
-    
+
     result = process_memo(test_memo_markdown)
-    
+
     # Check important elements are preserved
     assert PARTIAL_ORDER_WARNING in result
     assert ORDER_URL_MARKDOWN.split(']')[1].strip('()') in result
@@ -126,15 +126,15 @@ def test_ai_summarization_plain(mock_generate_summary, test_memo_plain, mock_set
     mock_settings.use_ai_summarization = True
     mock_settings.ynab_use_markdown = False
     mock_settings.openai_api_key = "test_key"
-    
+
     # Mock AI response
     mock_generate_summary.return_value = "AIRMEGA Filter Set, COWAY Filters (2), Chemical Guys Bottles (3), More Items\n" + ORDER_URL_PLAIN
-    
+
     result = process_memo(test_memo_plain)
-    
+
     # Check length
     assert len(result) <= YNAB_MEMO_LIMIT
-    
+
     # Verify AI was called with correct parameters
     mock_generate_summary.assert_called_once()
     assert ORDER_URL_PLAIN in result
@@ -145,15 +145,15 @@ def test_ai_summarization_markdown(mock_generate_summary, test_memo_markdown, mo
     mock_settings.use_ai_summarization = True
     mock_settings.ynab_use_markdown = True
     mock_settings.openai_api_key = "test_key"
-    
+
     # Mock AI response
     mock_generate_summary.return_value = "1. AIRMEGA Filter Set\n2. COWAY Filters (2)\n3. Chemical Guys Bottles (3)\n" + ORDER_URL_MARKDOWN
-    
+
     result = process_memo(test_memo_markdown)
-    
+
     # Check length
     assert len(result) <= YNAB_MEMO_LIMIT
-    
+
     # Verify AI was called with correct parameters
     mock_generate_summary.assert_called_once()
     assert ORDER_URL_MARKDOWN.split(']')[1].strip('()') in result
@@ -164,9 +164,9 @@ def test_no_openai_key_falls_back_to_truncation(mock_generate_summary, test_memo
     mock_settings.use_ai_summarization = True
     mock_settings.openai_api_key = None
     mock_generate_summary.return_value = None
-    
+
     result = process_memo(test_memo_plain)
-    
+
     # Check that important elements are preserved
     assert PARTIAL_ORDER_WARNING in result
     assert ORDER_URL_PLAIN in result
@@ -176,9 +176,9 @@ def test_memo_under_limit_returns_unchanged(mock_settings):
     """Test that memos under the character limit are returned unchanged."""
     short_memo = "Short memo with URL\nhttps://amazon.com/orders/123"
     mock_settings.use_ai_summarization = False
-    
+
     result = process_memo(short_memo)
-    
+
     assert result == short_memo
 
 def test_normalize_memo():
@@ -251,14 +251,14 @@ def test_generate_ai_summary_error_handling(mock_settings):
 def test_partial_order_warning_variations(test_memo_plain, mock_settings):
     """Test handling of different partial order warning formats."""
     mock_settings.use_ai_summarization = False
-    
+
     # Test with different amounts
     variations = [
         "-This transaction doesn't represent the entire order. The order total is $1.23-",
         "-This transaction doesn't represent the entire order. The order total is $1,234.56-",
         "-This transaction doesn't represent the entire order. The order total is $1,234,567.89-"
     ]
-    
+
     for warning in variations:
         memo = warning + "\n" + test_memo_plain.split("\n", 1)[1]
         result = process_memo(memo)
@@ -271,11 +271,11 @@ def test_truncate_memo_character_limit():
     items = ["Item " + str(i) for i in range(10)]
     url = "https://amazon.com/order/123"
     memo = "\n".join(items) + "\n" + url
-    
+
     # Should be unchanged
     result = truncate_memo(memo)
     assert result == memo
-    
+
     # Add one character to exceed limit
     memo = memo + "x"
     result = truncate_memo(memo)
@@ -286,17 +286,17 @@ def test_malformed_markdown_handling(mock_settings):
     """Test handling of malformed markdown and URLs."""
     mock_settings.use_ai_summarization = False
     mock_settings.ynab_use_markdown = False  # Change to False to test stripping
-    
+
     # Test with unclosed markdown link
     memo = "Unclosed link\nhttps://amazon.com/order/123"
     result = process_memo(memo)
     assert "Unclosed link" in result
     assert "https://amazon.com/order/123" in result
-    
+
     # Test with malformed URL
     memo = "Order #123 (not-a-url)"
     result = process_memo(memo)
     assert "Order #123" in result
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"]) 
+    pytest.main([__file__, "-v"])

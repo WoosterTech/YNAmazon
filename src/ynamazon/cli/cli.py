@@ -209,7 +209,7 @@ def yna_callback(
     """
     # Store the flag in the Typer context for use in commands
     ctx.obj = {"force_refresh_amazon": force_refresh_amazon}
-    
+
     rprint("[bold cyan]Starting YNAmazon processing...[/]")
     if ctx.invoked_subcommand is None:
         typer_run(function=ynamazon)

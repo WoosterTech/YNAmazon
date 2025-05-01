@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     """Settings configuration for project."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", 
+        env_file=".env",
         env_file_encoding="utf-8",
         env_prefix="",
         case_sensitive=True,

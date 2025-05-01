@@ -116,11 +116,11 @@ def process_transactions(  # noqa: C901
 
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
-        
+
         # Only use the AI processing if OpenAI is installed
         if 'process_memo' in globals():
             memo = process_memo(str(memo))
- 
+
         console.print("[bold u green]Processed Memo:[/]")
         console.print(memo)
 

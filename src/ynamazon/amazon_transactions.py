@@ -84,7 +84,7 @@ class AmazonTransactionRetriever:
         force_refresh_amazon: bool = False
     ):
         """Initialize an AmazonTransactionRetriever.
-        
+
         amazon_config (AmazonConfig): Configuration for Amazon, primarily credentials
         order_years (list[int] | None): A list of years to fetch transactions for. `None` for the current year.
         transaction_days (int): Number of days to fetch transactions for. Defaults to 31.
@@ -94,7 +94,7 @@ class AmazonTransactionRetriever:
         self.order_years = self.__class__._normalized_years(order_years)
         self.transaction_days = transaction_days
         self.force_refresh_amazon = force_refresh_amazon
-        
+
         # for memoizing the results of method calls
         self._memo = {}
 
