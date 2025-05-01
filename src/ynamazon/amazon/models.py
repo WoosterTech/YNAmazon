@@ -3,7 +3,7 @@ import abc
 import datetime as dt
 import uuid
 from decimal import Decimal
-from typing import Annotated, Any, Union
+from typing import Annotated, Any
 
 from amazonorders.session import AmazonSession
 from amazonorders.transactions import AmazonTransactions
@@ -27,12 +27,12 @@ class Entity(BaseClone, abc.ABC):
 class Item(Entity):
     title: str
     link: HttpUrl
-    price: Union[Decimal, None] = None
-    seller: Union[AmazonSellerType, None] = None
-    condition: Union[str, None] = None
-    return_eligible_date: Union[dt.date, None] = None
-    image_link: Union[HttpUrl, None] = None
-    quantity: Union[int, None] = None
+    price: Decimal | None = None
+    seller: AmazonSellerType | None = None
+    condition: str | None = None
+    return_eligible_date: dt.date | None = None
+    image_link: HttpUrl | None = None
+    quantity: int | None = None
 
     def __str__(self) -> str:
         if get_settings().ynab_use_markdown:
@@ -59,15 +59,15 @@ class Address(BaseModel):
 
 class Recipient(Entity):
     name: str
-    address: Union[Address, None] = Field(
+    address: Address | None = Field(
         repr=False, default=None, description="not parsed properly, don't use"
     )
 
 
 class Shipment(Entity):
     items: list[Item]
-    delivery_status: Union[str, None] = None
-    tracking_link: Union[HttpUrl, None] = None
+    delivery_status: str | None = None
+    tracking_link: HttpUrl | None = None
 
 
 class Order(Entity):
@@ -77,13 +77,13 @@ class Order(Entity):
     shipments: list[Shipment]
     items: list[Item]
     order_number: str
-    order_details_link: Union[HttpUrl, None] = None
+    order_details_link: HttpUrl | None = None
     grand_total: Decimal
     order_placed_date: dt.date
-    recipient: Union[Recipient, None] = None
-    payment_method: Union[str, None] = None
-    payment_method_last_4: Union[str, None] = None
-    total_before_tax: Union[Decimal, None] = None
+    recipient: Recipient | None = None
+    payment_method: str | None = None
+    payment_method_last_4: str | None = None
+    total_before_tax: Decimal | None = None
 
 
 class Orders(SimpleDict[str, Order]):
@@ -91,10 +91,10 @@ class Orders(SimpleDict[str, Order]):
     def get_order_history(
         cls,
         config: AmazonConfig,
-        session: Union[AmazonSession, None] = None,
-        years: Union[list[int], Union[int, None]] = None,
+        session: AmazonSession | None = None,
+        years: list[int] | int | None = None,
         *,
-        debug: Union[bool, None] = None,
+        debug: bool | None = None,
     ):
         from ynamazon.amazon_transactions import (
             _fetch_amazon_order_history,  # pyright: ignore[reportPrivateUsage]
@@ -121,7 +121,7 @@ class Transaction(Entity):
     order_number: str
     order_details_link: HttpUrl
     seller_name: Annotated[str, Field(alias="seller")]
-    order: Union[Order, None] = None
+    order: Order | None = None
 
     def match_order(self, orders: Orders) -> None:
         """Matches the transaction with the order."""
@@ -132,7 +132,7 @@ class Transaction(Entity):
         attr_path: str,
         *,
         separator: str = "__",
-        default: Union[Any, Missing] = MISSING,
+        default: Any | Missing = MISSING,
     ) -> Any:
         return getattr_path(self, attr_path, separator=separator, default=default)
 

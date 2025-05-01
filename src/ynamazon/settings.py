@@ -1,7 +1,6 @@
 from functools import lru_cache
 from os import PathLike
 from pathlib import Path
-from typing import Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,7 +46,7 @@ class Settings(BaseSettings):
     ynab_budget_id: SecretBudgetId
     amazon_user: EmailStr
     amazon_password: SecretStr
-    openai_api_key: Union[SecretApiKey, None] = None
+    openai_api_key: SecretApiKey | None = None
 
     ynab_payee_name_to_be_processed: str = "Amazon - Needs Memo"
     ynab_payee_name_processing_completed: str = "Amazon"
@@ -64,7 +63,7 @@ class Settings(BaseSettings):
             )
         return self
 
-    def get_secret_value(self, key: str) -> Union[str, None]:
+    def get_secret_value(self, key: str) -> str | None:
         """Get secret API key or budget ID."""
         value = getattr(self, key)
         if value is None:
@@ -84,17 +83,17 @@ class ConfigFile(BaseModel):
     """Configuration file for CLI."""
 
     model_config = ConfigDict(extra="forbid")
-    ynab_api_key: Union[SecretApiKey, None] = None
-    ynab_budget_id: Union[SecretBudgetId, None] = None
-    amazon_user: Union[EmailStr, None] = None
-    amazon_password: Union[SecretStr, None] = None
+    ynab_api_key: SecretApiKey | None = None
+    ynab_budget_id: SecretBudgetId | None = None
+    amazon_user: EmailStr | None = None
+    amazon_password: SecretStr | None = None
 
-    ynab_payee_name_to_be_processed: Union[str, None] = None
-    ynab_payee_name_processing_completed: Union[str, None] = None
-    ynab_use_markdown: Union[bool, None] = None
+    ynab_payee_name_to_be_processed: str | None = None
+    ynab_payee_name_processing_completed: str | None = None
+    ynab_use_markdown: bool | None = None
 
     @classmethod
-    def from_config(cls, file: Union[str, PathLike]):
+    def from_config(cls, file: str | PathLike):
         file_path = Path(file)
         if not file_path.exists():
             raise FileNotFoundError(f"Config file {file_path} does not exist.")

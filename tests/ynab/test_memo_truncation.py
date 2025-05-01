@@ -9,7 +9,6 @@ This module contains tests for the memo processing functionality, including:
 """
 
 from collections.abc import Callable
-from typing import Union
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -137,7 +136,7 @@ def test_truncation_with_markdown(monkeypatch, test_memo_markdown):
 
 @patch("ynamazon.ynab_memo.generate_ai_summary")
 def test_ai_summarization_plain(
-    mock_generate_summary: Callable[..., Union[str, None]],
+    mock_generate_summary: Callable[..., str | None],
     monkeypatch,
     test_memo_plain,
 ):

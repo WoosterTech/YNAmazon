@@ -1,7 +1,6 @@
 """Functions for truncating and summarizing memos to fit YNAB's character limit."""
 
 import re
-from typing import Optional, Union
 
 from loguru import logger
 from openai import APIError, AuthenticationError, OpenAI, RateLimitError
@@ -26,10 +25,10 @@ YNAB_MEMO_LIMIT = 500  # YNAB's character limit for memos
 def generate_ai_summary(
     items: list[str],
     order_url: str,
-    order_total: Optional[str] = None,
-    transaction_amount: Optional[str] = None,
+    order_total: str | None = None,
+    transaction_amount: str | None = None,
     max_length: int = YNAB_MEMO_LIMIT,
-) -> Union[str, None]:
+) -> str | None:
     """Uses OpenAI to generate a concise human-readable memo that fits within the character limit.
 
     Args:
@@ -146,7 +145,7 @@ def normalize_memo(memo: str) -> str:
     return "\n".join(result)
 
 
-def extract_order_url(memo: str) -> Union[str, None]:
+def extract_order_url(memo: str) -> str | None:
     """Extract the Amazon order URL from a memo, handling both markdown and non-markdown formats."""
     # First normalize the memo to handle split lines
     normalized_memo = normalize_memo(memo)
@@ -172,7 +171,7 @@ def extract_order_url(memo: str) -> Union[str, None]:
 
 def _extract_memo_parts(
     memo: str,
-) -> tuple[Union[str, None], Union[str, None], list[str]]:
+) -> tuple[str | None, str | None, list[str]]:
     """Extract key parts from the memo: multi-order line, items header, and item lines."""
     lines = [
         line.strip() for line in memo.replace("\r\n", "\n").split("\n") if line.strip()
@@ -192,8 +191,8 @@ def _extract_memo_parts(
 
 
 def _calculate_remaining_space(
-    multi_order_line: Union[str, None],
-    items_header: Union[str, None],
+    multi_order_line: str | None,
+    items_header: str | None,
     item_lines: list[str],
     url_line: str,
 ) -> int:

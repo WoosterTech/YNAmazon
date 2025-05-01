@@ -955,7 +955,6 @@ wheels = [
 
 [[package]]
 name = "target-orders"
-version = "0.1.0"
 source = { editable = "../target-orders" }
 dependencies = [
     { name = "attrmagic" },
@@ -1256,7 +1255,6 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
-    { name = "target-orders" },
     { name = "toml" },
     { name = "typer" },
     { name = "ynab" },
@@ -1303,7 +1301,6 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "requests", specifier = ">=2.30.0" },
     { name = "rich", specifier = ">=14.0.0" },
-    { name = "target-orders", editable = "../target-orders" },
     { name = "target-orders", marker = "extra == 'target'", editable = "../target-orders" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "typer", specifier = ">=0.15.2" },

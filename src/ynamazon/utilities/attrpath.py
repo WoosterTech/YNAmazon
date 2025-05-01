@@ -1,13 +1,13 @@
 # pyright: strict
 from collections import deque
-from typing import Any, Union
+from typing import Any
 
 from .sentinels import MISSING
 
 
 def getattr_path(
     obj: object, path: str, *, separator: str = "__", default: Any = MISSING
-) -> Union[Any, None]:
+) -> Any | None:
     """Get an attribute path, as defined by a string separated by '__'.
 
     Example:

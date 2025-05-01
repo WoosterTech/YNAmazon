@@ -4,7 +4,6 @@ from typing import (
     Generic,
     SupportsIndex,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -43,14 +42,14 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         return self.root.items()
 
     @overload  # type: ignore[override]
-    def get(self, key: _KT, /) -> Union[_VT, None]: ...
+    def get(self, key: _KT, /) -> _VT | None: ...
     @overload
     def get(self, key: _KT, default: _VT, /) -> _VT: ...
     @overload
-    def get(self, key: _KT, default: _T, /) -> Union[_VT, _T]: ...
+    def get(self, key: _KT, default: _T, /) -> _VT | _T: ...
     def get(
-        self, key: _KT, default: Union[_T, _VT, Missing] = MISSING, /
-    ) -> Union[_VT, _T, None]:
+        self, key: _KT, default: _T | _VT | Missing = MISSING, /
+    ) -> _VT | _T | None:
         """Return the value for key if key is in the dictionary, else default.
 
         Args:
@@ -66,10 +65,8 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
     @overload
     def pop(self, key: _KT, default: _VT, /) -> _VT: ...
     @overload
-    def pop(self, key: _KT, default: _T, /) -> Union[_VT, _T]: ...
-    def pop(
-        self, key: _KT, default: Union[_T, _VT, Missing] = MISSING, /
-    ) -> Union[_VT, _T]:
+    def pop(self, key: _KT, default: _T, /) -> _VT | _T: ...
+    def pop(self, key: _KT, default: _T | _VT | Missing = MISSING, /) -> _VT | _T:
         """Remove specified key and return the corresponding value.
 
         Args:

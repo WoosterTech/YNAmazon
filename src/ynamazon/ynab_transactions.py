@@ -122,8 +122,8 @@ class MemoField(BaseModel):
 class TempYnabTransaction(HybridTransaction):
     """Temporary YNAB transaction."""
 
-    _memo: Union[str, None] = None
-    _memo_truncated: Union[bool, None] = None
+    _memo: str | None = None
+    _memo_truncated: bool | None = None
 
     @property
     def rendered_memo(self) -> str:
@@ -297,8 +297,8 @@ def translate_hybrid_to_temp(
 
 
 def get_payees_by_budget(
-    configuration: Union[Configuration, None] = None,
-    budget_id: Union[str, None] = None,
+    configuration: Configuration | None = None,
+    budget_id: str | None = None,
 ) -> list["Payee"]:
     """Returns a list of payees by budget ID.
 
@@ -319,8 +319,8 @@ def get_payees_by_budget(
 
 def get_transactions_by_payee(
     payee: Payee,
-    configuration: Union[Configuration, None] = None,
-    budget_id: Union[str, None] = None,
+    configuration: Configuration | None = None,
+    budget_id: str | None = None,
 ) -> list[TempYnabTransaction]:
     """Returns a list of transactions by payee.
 
@@ -344,8 +344,8 @@ def get_transactions_by_payee(
 
 
 def get_ynab_transactions(
-    configuration: Union[Configuration, None] = None,
-    budget_id: Union[str, None] = None,
+    configuration: Configuration | None = None,
+    budget_id: str | None = None,
 ) -> tuple[list[TempYnabTransaction], "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
@@ -395,8 +395,8 @@ def update_ynab_transaction(
     transaction: "HybridTransaction",
     memo: str,
     payee_id: str,
-    configuration: Union[Configuration, None] = None,
-    budget_id: Union[str, None] = None,
+    configuration: Configuration | None = None,
+    budget_id: str | None = None,
 ) -> None:
     """Updates a YNAB transaction with the given memo and payee ID.
 
@@ -459,7 +459,7 @@ _T = TypeVar("_T", bound=Payee)
 
 def find_item_by_attribute(
     items: Iterable[_T], attribute: str, value: Any
-) -> Union[_T, None]:
+) -> _T | None:
     """Finds an item in a list by its attribute value.
 
     Args:

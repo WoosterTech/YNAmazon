@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Union
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -11,7 +11,7 @@ app = typer.Typer(rich_markup_mode="rich")
 @app.command()
 def print_transactions(
     cookies_path: Annotated[
-        Union[Path, None],
+        Path | None,
         typer.Option(
             "--cookies-path",
             help="Path to the json file.",

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Union  # ,  Self  # not available python <3.11
+from typing import Annotated  # ,  Self  # not available python <3.11
 
 from amazonorders.conf import AmazonOrdersConfig
 from amazonorders.entity.order import Order
@@ -35,7 +35,7 @@ class AmazonTransactionWithOrderInfo(BaseModel):
     ]
     order_total: Decimal
     order_number: str
-    order_link: Union[AnyUrl, None]
+    order_link: AnyUrl | None
     items: list[AmazonItemType]
 
     @field_validator("transaction_total", mode="after")
@@ -78,7 +78,7 @@ class AmazonConfig(BaseModel):
     config: AmazonOrdersConfig = Field(default_factory=lambda: AmazonOrdersConfig())
     debug: bool = False
 
-    def amazon_session(self, *, debug: Union[bool, None] = None) -> AmazonSession:
+    def amazon_session(self, *, debug: bool | None = None) -> AmazonSession:
         """Creates an Amazon session."""
         logger.debug(f"Creating Amazon session for {self.username}")
         return AmazonSession(
@@ -89,9 +89,9 @@ class AmazonConfig(BaseModel):
 
 
 def get_amazon_transactions(
-    order_years: Union[list[int], None] = None,
+    order_years: list[int] | None = None,
     transaction_days: int = 31,
-    configuration: Union[AmazonConfig, None] = None,
+    configuration: AmazonConfig | None = None,
 ) -> list[AmazonTransactionWithOrderInfo]:
     """Returns a list of transactions with order info.
 
@@ -135,9 +135,9 @@ def get_amazon_transactions(
 def _fetch_amazon_order_history(
     *,
     session: AmazonSession,
-    years: Union[Sequence[Union[int, str]], Union[int, str], None] = None,
+    years: Sequence[int | str] | int | str | None = None,
     debug: bool = False,
-    config: Union[AmazonOrdersConfig, None] = None,
+    config: AmazonOrdersConfig | None = None,
 ) -> list[Order]:
     """Returns a list of Amazon orders.
 
@@ -175,7 +175,7 @@ def _fetch_sorted_amazon_transactions(
     amazon_session: AmazonSession,
     transaction_days: int = 31,
     debug: bool = False,
-    config: Union[AmazonOrdersConfig, None] = None,
+    config: AmazonOrdersConfig | None = None,
 ) -> list[Transaction]:
     """Fetches and sorts Amazon transactions."""
     if not amazon_session.is_authenticated:
@@ -225,8 +225,8 @@ def _truncate_title(title: str, max_length: int = 20) -> str:
 
 
 def locate_amazon_transaction_by_amount(
-    amazon_trans: list[AmazonTransactionWithOrderInfo], amount: Union[float, Decimal]
-) -> Union[int, None]:
+    amazon_trans: list[AmazonTransactionWithOrderInfo], amount: float | Decimal
+) -> int | None:
     """Given an amount, locate a matching Amazon transaction.
 
     Args:
