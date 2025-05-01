@@ -183,3 +183,4 @@ cython_debug/
 config*.*ml
 
 target_login.json
+src/ynamazon/_version.py
