@@ -1,8 +1,9 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from decimal import Decimal
-from typing import Any, Literal, TypedDict, TypeVar
+from typing import Any, Literal, Protocol, Self, TypeAlias, TypedDict, TypeVar
 
+from attrmagic import SimpleRoot
 from loguru import logger
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 from rich import print as rprint
@@ -21,6 +22,40 @@ from ynamazon.amazon.models import Transaction
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.settings import get_settings
 from ynamazon.utilities.bases import SimpleListRoot
+
+_T_contra = TypeVar("_T_contra", contravariant=True)
+_T = TypeVar("_T")
+
+
+class SupportsDunderLT(Protocol[_T_contra]):
+    def __lt__(self, other: _T_contra, /) -> bool: ...
+
+
+class SupportsDunderGT(Protocol[_T_contra]):
+    def __gt__(self, other: _T_contra, /) -> bool: ...
+
+
+class SupportsDunderLE(Protocol[_T_contra]):
+    def __le__(self, other: _T_contra, /) -> bool: ...
+
+
+class SupportsDunderGE(Protocol[_T_contra]):
+    def __ge__(self, other: _T_contra, /) -> bool: ...
+
+
+class SupportsAllComparisons(
+    SupportsDunderLT[Any],
+    SupportsDunderGT[Any],
+    SupportsDunderLE[Any],
+    SupportsDunderGE[Any],
+    Protocol,
+): ...
+
+
+SupportsRichComparison: TypeAlias = SupportsDunderLT[Any] | SupportsDunderGT[Any]
+SupportsRichComparisonT = TypeVar(
+    "SupportsRichComparisonT", bound=SupportsRichComparison
+)
 
 
 def get_default_ynab_config() -> Configuration:
@@ -187,6 +222,26 @@ class TempYnabTransaction(HybridTransaction):
         self._memo_truncated = truncated
 
 
+class YnabTransactions(SimpleRoot[TempYnabTransaction]):
+    @classmethod
+    def from_transactions(cls, transactions: list[HybridTransaction]) -> Self:
+        """Creates a YnabTransactions instance from a list of transactions."""
+        return cls(
+            root=[
+                TempYnabTransaction.model_validate(t.model_dump()) for t in transactions
+            ]
+        )
+
+    def sort(
+        self,
+        *,
+        key: Callable[[TempYnabTransaction], SupportsRichComparisonT] | None = None,
+        reverse: bool = False,
+    ) -> None:
+        """Sorts the transactions in place."""
+        self.root.sort(key=key, reverse=reverse)  # type: ignore
+
+
 def _truncate_line(line_text: str, chars_to_remove: int, ellipsis: str = "...") -> str:
     """Truncates a line to a maximum length.
 
@@ -321,7 +376,7 @@ def get_transactions_by_payee(
     payee: Payee,
     configuration: Configuration | None = None,
     budget_id: str | None = None,
-) -> list[TempYnabTransaction]:
+) -> YnabTransactions:
     """Returns a list of transactions by payee.
 
     Args:
@@ -340,18 +395,23 @@ def get_transactions_by_payee(
             payee_id=payee.id,
         )
 
-    return translate_hybrid_to_temp(response.data.transactions)
+    return YnabTransactions.from_transactions(response.data.transactions)
 
 
 def get_ynab_transactions(
     configuration: Configuration | None = None,
     budget_id: str | None = None,
-) -> tuple[list[TempYnabTransaction], "Payee"]:
+    *,
+    unprocessed_payee: str | None = None,
+    processed_payee: str | None = None,
+) -> tuple[YnabTransactions, "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
     Args:
         configuration (Configuration | None): The YNAB API configuration.
         budget_id (str | None): The budget ID.
+        unprocessed_payee (str | None): The payee name to be processed.
+        processed_payee (str | None): The payee name for processing completed.
 
     Returns:
         tuple[list[HybridTransaction], Payee] | None: A tuple of YNAB transactions and the payee.
@@ -365,15 +425,22 @@ def get_ynab_transactions(
     payees = get_payees_by_budget(configuration, budget_id)
 
     rprint("Finding payees...")
+    needs_memo_payee = (
+        unprocessed_payee or get_settings().ynab_payee_name_to_be_processed
+    )
+    with_memo_payee = (
+        processed_payee or get_settings().ynab_payee_name_processing_completed
+    )
+
     amazon_needs_memo_payee = find_item_by_attribute(
         items=payees,
         attribute="name",
-        value=get_settings().ynab_payee_name_to_be_processed,
+        value=needs_memo_payee,
     )
     amazon_with_memo_payee = find_item_by_attribute(
         items=payees,
         attribute="name",
-        value=get_settings().ynab_payee_name_processing_completed,
+        value=with_memo_payee,
     )
     if amazon_needs_memo_payee is None:
         raise YnabSetupError(
@@ -454,12 +521,12 @@ def update_ynab_transaction(
     print(update_response)
 
 
-_T = TypeVar("_T", bound=Payee)
+_P = TypeVar("_P", bound=Payee)
 
 
 def find_item_by_attribute(
-    items: Iterable[_T], attribute: str, value: Any
-) -> _T | None:
+    items: Iterable[_P], attribute: str, value: Any
+) -> _P | None:
     """Finds an item in a list by its attribute value.
 
     Args:
@@ -567,11 +634,3 @@ def markdown_formatted_link(
         key="url",
         use_markdown=use_markdown,
     )
-
-
-if __name__ == "__main__":
-    ynab_transactions, _ = get_ynab_transactions()
-    if not ynab_transactions:
-        rprint("[bold red]No transactions found.[/]")
-        exit(1)
-    print_ynab_transactions(transactions=ynab_transactions)

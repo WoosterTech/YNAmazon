@@ -25,7 +25,10 @@ dependencies = [
 ai = [
     "openai>=1.12.0", # OpenAI Python client for AI summarization
 ]
-target = ["target-orders"]
+target = [
+    "attrmagic",
+    "target-orders",
+]
 
 [project.urls]
 Repository = "https://github.com/DanielKarp/YNAmazon"
@@ -76,6 +79,7 @@ ignore_missing_imports = true
 
 [tool.uv.sources]
 target-orders = { path = "../target-orders", editable = true }
+attrmagic = { git = "https://github.com/WoosterTech/AttrMagic.git" }
 
 # [tool.deptry]
 # known_first_party = ["ynamazon"]
