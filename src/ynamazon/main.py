@@ -7,7 +7,7 @@ from rich.prompt import Confirm
 
 from ynamazon.amazon_transactions import (
     AmazonConfig,
-    get_amazon_transactions,
+    AmazonTransactionRetriever,
     locate_amazon_transaction_by_amount,
 )
 from ynamazon.exceptions import YnabSetupError
@@ -47,6 +47,7 @@ def process_transactions(  # noqa: C901
     amazon_config: AmazonConfig | None = None,
     ynab_config: "Configuration | None" = None,
     budget_id: str | None = None,
+    force_refresh_amazon: bool = False
 ) -> None:
     """Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos."""
     amazon_config = amazon_config or AmazonConfig()
@@ -64,7 +65,11 @@ def process_transactions(  # noqa: C901
         return
 
     console.print("[cyan]Starting search for Amazon transactions...[/]")
-    amazon_trans = get_amazon_transactions()
+    amazon_trans = AmazonTransactionRetriever(
+        amazon_config=amazon_config,
+        force_refresh_amazon=force_refresh_amazon
+    ).get_amazon_transactions()
+
     console.print(
         f"[green]{len(amazon_trans)} Amazon transactions retrieved successfully.[/]"
     )

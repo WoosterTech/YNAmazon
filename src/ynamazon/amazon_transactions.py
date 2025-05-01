@@ -75,94 +75,146 @@ class AmazonConfig(BaseModel):
             password=self.password.get_secret_value(),
         )
 
-
-@Cache(
-    validity_duration="10m",
-    enable_cache_arg_name="use_cache",
-    cache_path=os.path.join(tempfile.gettempdir(), "ynamazon", "amazon_transactions_json_compatible_amazon_transactions_{_hash}.pkl")
-)
-def get_amazon_transactions(
-    order_years: Union[list[int], None] = None,
-    transaction_days: int = 31,
-    configuration: Union[AmazonConfig, None] = None,
-) -> list[AmazonTransactionWithOrderInfo]:
-    """Returns a list of transactions with order info.
-
-    Args:
+class AmazonTransactionRetriever:
+    def __init__(
+        self,
+        amazon_config: AmazonConfig,
+        order_years: list[str] | None = None,
+        transaction_days: int = 31,
+        force_refresh_amazon: bool = False
+    ):
+        """Initialize an AmazonTransactionRetriever.
+        
+        amazon_config (AmazonConfig): Configuration for Amazon, primarily credentials
         order_years (list[int] | None): A list of years to fetch transactions for. `None` for the current year.
-        transaction_days (int): Number of days to fetch transactions for.
-        configuration (AmazonConfig | None): Amazon configuration.
+        transaction_days (int): Number of days to fetch transactions for. Defaults to 31.
+        force_refresh_amazon (bool): Refresh cache by fetching transactions directly from Amazon.
+        """
+        self.amazon_config = amazon_config
+        self.order_years = self.__class__._normalized_years(order_years)
+        self.transaction_days = transaction_days
+        self.force_refresh_amazon = force_refresh_amazon
+        
+        # for memoizing the results of method calls
+        self._memo = {}
 
-    Returns:
-        list[TransactionWithOrderInfo]: A list of transactions with order info
-    """
-    if configuration is None:
-        configuration = AmazonConfig()
-    amazon_session = configuration.amazon_session()
-    amazon_session.login()
+    def get_amazon_transactions(self) -> list[AmazonTransactionWithOrderInfo]:
+        """Get Amazon transactions linked to orders.
 
-    orders = _fetch_amazon_order_history(session=amazon_session, years=order_years)
-    orders_dict = {order.order_number: order for order in orders}
+        This method exists as a layer to force caching to work one level below with all relevant parameters considered
 
-    amazon_transactions = _fetch_sorted_amazon_transactions(
-        transaction_days=transaction_days, amazon_session=amazon_session
+        Returns:
+            list[TransactionWithOrderInfo]: A list of transactions with order info
+        """
+        return self._get_amazon_transactions(
+            order_years = self.order_years,
+            transaction_days = self.transaction_days,
+            amazon_config = self.amazon_config,
+            use_cache = not self.force_refresh_amazon
+        )
+
+    @Cache(
+        validity_duration="2h",
+        enable_cache_arg_name="use_cache",
+        cache_path=os.path.join(tempfile.gettempdir(), "ynamazon", "amazon_transactions_get_amazon_transactions_{_hash}.pkl")
     )
+    def _get_amazon_transactions(
+            self,
+            order_years: list[str],
+            transaction_days: int,
+            amazon_config: AmazonConfig,
+        ) -> list[AmazonTransactionWithOrderInfo]:
+        orders_dict = {order.order_number: order for order in self._amazon_orders()}
 
-    amazon_transaction_with_order_details: list[AmazonTransactionWithOrderInfo] = []
-    for transaction in amazon_transactions:
-        try:
-            amazon_transaction_with_order_details.append(
-                AmazonTransactionWithOrderInfo.from_transaction_and_orders(
-                    orders_dict=orders_dict, transaction=transaction
+        amazon_transactions = self._amazon_transactions()
+
+        amazon_transaction_with_order_details: list[AmazonTransactionWithOrderInfo] = []
+        for transaction in amazon_transactions:
+            try:
+                amazon_transaction_with_order_details.append(
+                    AmazonTransactionWithOrderInfo.from_transaction_and_orders(
+                        orders_dict=orders_dict, transaction=transaction
+                    )
                 )
+            except ValueError:
+                logger.debug(
+                    f"Transaction {transaction.order_number} not found in retrieved orders."
+                )
+                continue
+
+        return amazon_transaction_with_order_details
+
+
+    def _amazon_orders(self) -> list[Order]:
+        """Returns a list of Amazon orders.
+
+        Args:
+            years (Sequence[int] | None): A sequence of years to fetch orders for. `None` for the current year.
+
+        Returns:
+            list[Order]: A list of Amazon orders.
+        """
+        if "amazon_orders" in self._memo:
+            return self._memo["amazon_orders"]
+
+        amazon_orders = AmazonOrders(self._session())
+
+        all_orders: list[Order] = []
+        for year in self.order_years:
+            all_orders.extend(amazon_orders.get_order_history(year=year))
+        all_orders.sort(key=lambda order: order.order_placed_date)
+
+        self._memo["amazon_orders"] = all_orders
+
+        return self._memo["amazon_orders"]
+
+
+    def _amazon_transactions(self) -> list[Transaction]:
+        """Fetches and sorts Amazon transactions."""
+        if "amazon_transactions" in self._memo:
+            return self._memo["amazon_transactions"]
+
+        self._memo["amazon_transactions"] = \
+            AmazonTransactions(
+                amazon_session=self._session()
+            ).get_transactions(
+                days=self.transaction_days
             )
-        except ValueError:
-            logger.debug(
-                f"Transaction {transaction.order_number} not found in retrieved orders."
-            )
-            continue
 
-    return amazon_transaction_with_order_details
+        self._memo["amazon_transactions"].sort(key=lambda trans: trans.completed_date)
 
+        return self._memo['amazon_transactions']
 
-def _fetch_amazon_order_history(
-    *, session: AmazonSession, years: Union[list[int], None] = None
-) -> list[Order]:
-    """Returns a list of Amazon orders.
+    def _session(self) -> AmazonSession:
+        if 'session' in self._memo:
+            return self._memo['session']
 
-    Args:
-        session (AmazonSession): Amazon session (must be logged in).
-        years (Sequence[int] | None): A sequence of years to fetch orders for. `None` for the current year.
+        amazon_session = self.amazon_config.amazon_session()
+        amazon_session.login()
 
-    Returns:
-        list[Order]: A list of Amazon orders.
-    """
-    if not session.is_authenticated:
-        raise ValueError("Session must be authenticated.")
-    amazon_orders = AmazonOrders(session)
-    if years is None:
-        years = [date.today().year]
-    all_orders: list[Order] = []
-    for year in years:
-        if len(year_str := str(year)) == 2:
-            year_str = "20" + year_str
-        all_orders.extend(amazon_orders.get_order_history(year=year_str))
-    all_orders.sort(key=lambda order: order.order_placed_date)
+        if amazon_session.is_authenticated:
+            self._memo["session"] = amazon_session
+            return self._memo["session"]
 
-    return all_orders
+    @classmethod
+    def _normalized_years(
+        cls,
+        years: list[str] | None = None
+     ) -> list[str]:
+        if years is None:
+            return [date.today().year]
 
+        result: list[str] = []
 
-def _fetch_sorted_amazon_transactions(
-    *, amazon_session: AmazonSession, transaction_days: int = 31
-) -> list[Transaction]:
-    """Fetches and sorts Amazon transactions."""
-    if not amazon_session.is_authenticated:
-        raise ValueError("Session must be authenticated.")
-    amazon_transactions = AmazonTransactions(
-        amazon_session=amazon_session
-    ).get_transactions(days=transaction_days)
-    amazon_transactions.sort(key=lambda trans: trans.completed_date)
-    return amazon_transactions
+        for year in years:
+            if len(year) == 2:
+                result.append("20" + year)
+            elif len(year) == 4:
+                result.append(year)
+            else:
+                raise ValueError("Year must be specified as 2 or 4 digits (e.g. 21 or 2021)")
+
+        return result
 
 
 def print_amazon_transactions(
@@ -222,5 +274,5 @@ def locate_amazon_transaction_by_amount(
     return None
 
 
-if __name__ == "__main__":
-    print_amazon_transactions(get_amazon_transactions())
+# if __name__ == "__main__":
+    # print_amazon_transactions(AmazonTransactionRetriever.new()
