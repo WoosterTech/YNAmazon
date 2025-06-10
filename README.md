@@ -1,3 +1,5 @@
+:bangbang: : Development has moved to [WoosterTech fork](https://github.com/WoosterTech/YNAmazon/). This repository is no longer maintained.
+
 # YNAmazon
 A program to annotate YNAB transactions with Amazon order info
 
