@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -12,6 +12,7 @@ from ynamazon.amazon_transactions import (
 )
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.settings import settings
+from ynamazon.ynab_memo import process_memo
 from ynamazon.ynab_transactions import default_configuration as ynab_configuration
 from ynamazon.ynab_transactions import (
     get_ynab_transactions,
@@ -19,10 +20,9 @@ from ynamazon.ynab_transactions import (
     markdown_formatted_title,
     update_ynab_transaction,
 )
-from ynamazon.ynab_memo import process_memo
 
 if TYPE_CHECKING:
-    from ynab import Configuration
+    from ynab.configuration import Configuration
 
 
 class MultiLineText(BaseModel):
@@ -30,6 +30,7 @@ class MultiLineText(BaseModel):
 
     lines: list[str] = Field(default_factory=list)
 
+    @override
     def __str__(self) -> str:
         """Returns the string representation of the object."""
         return "\n".join(self.lines)
@@ -61,10 +62,8 @@ def process_transactions(  # noqa: C901
         return
 
     console.print("[cyan]Starting search for Amazon transactions...[/]")
-    amazon_trans = get_amazon_transactions()
-    console.print(
-        f"[green]{len(amazon_trans)} Amazon transactions retrieved successfully.[/]"
-    )
+    amazon_trans = get_amazon_transactions(configuration=amazon_config)
+    console.print(f"[green]{len(amazon_trans)} Amazon transactions retrieved successfully.[/]")
 
     console.print("[cyan]Starting to look for matching transactions...[/]")
     for ynab_tran in ynab_trans:
@@ -77,9 +76,7 @@ def process_transactions(  # noqa: C901
             amazon_trans=amazon_trans, amount=ynab_tran.amount_decimal
         )
         if not amazon_tran_index:
-            console.print(
-                "[bold yellow]**** Could not find a matching Amazon Transaction![/]"
-            )
+            console.print("[bold yellow]**** Could not find a matching Amazon Transaction![/]")
             continue
 
         amazon_tran = amazon_trans[amazon_tran_index]
@@ -101,17 +98,15 @@ def process_transactions(  # noqa: C901
             memo.append(f"- {markdown_formatted_title(item.title, item.link)}")
 
         memo.append(
-            markdown_formatted_link(
-                f"Order #{amazon_tran.order_number}", amazon_tran.order_link
-            )
+            markdown_formatted_link(f"Order #{amazon_tran.order_number}", amazon_tran.order_link)
         )
 
         console.print("[bold u green]Memo:[/]")
         console.print(str(memo))
-        
+
         # Process the memo and use new AI summary or trucation if needed
         memo = process_memo(str(memo))
-        
+
         console.print("[bold u green]Processed Memo:[/]")
         console.print(memo)
 

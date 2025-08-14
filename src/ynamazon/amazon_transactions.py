@@ -1,9 +1,11 @@
+# pyright: reportDeprecated=false
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Union  # ,  Self  # not available python <3.11
 
 from amazonorders.entity.order import Order
 from amazonorders.entity.transaction import Transaction
+from amazonorders.exception import AmazonOrdersAuthError
 from amazonorders.orders import AmazonOrders
 from amazonorders.session import AmazonSession
 from amazonorders.transactions import AmazonTransactions
@@ -36,20 +38,18 @@ class AmazonTransactionWithOrderInfo(BaseModel):
 
     # TODO: when dropping support for python <3.11, use Self
     @classmethod
-    def from_transaction_and_orders(
-        cls, orders_dict: "dict[str, Order]", transaction: Transaction
-    ):
+    def from_transaction_and_orders(cls, orders_dict: "dict[str, Order]", transaction: Transaction):
         """Creates an instance from an order and transactions."""
-        order = orders_dict.get(transaction.order_number)
+        order = orders_dict.get(transaction.order_number)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
         if order is None:
-            raise ValueError(f"Order with number {transaction.order_number} not found.")
+            raise ValueError(f"Order with number {transaction.order_number} not found.")  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
         return cls(
-            completed_date=transaction.completed_date,
-            transaction_total=transaction.grand_total,
-            order_total=order.grand_total,
-            order_number=order.order_number,
-            order_link=order.order_details_link,
-            items=order.items,
+            completed_date=transaction.completed_date,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+            transaction_total=transaction.grand_total,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+            order_total=order.grand_total,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+            order_number=order.order_number,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+            order_link=order.order_details_link,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+            items=order.items,  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
         )
 
 
@@ -63,19 +63,22 @@ class AmazonConfig(BaseModel):
 
     username: EmailStr = Field(default_factory=lambda: settings.amazon_user)
     password: SecretStr = Field(default_factory=lambda: settings.amazon_password)
+    debug: bool = False
 
     def amazon_session(self) -> AmazonSession:
         """Creates an Amazon session."""
+        logger.debug(f"Creating Amazon session for with debug={self.debug}")
         return AmazonSession(
             username=self.username,
             password=self.password.get_secret_value(),
+            debug=self.debug,
         )
 
 
 def get_amazon_transactions(
-    order_years: Union[list[int], None] = None,
+    order_years: list[int] | None = None,
     transaction_days: int = 31,
-    configuration: Union[AmazonConfig, None] = None,
+    configuration: AmazonConfig | None = None,
 ) -> list[AmazonTransactionWithOrderInfo]:
     """Returns a list of transactions with order info.
 
@@ -90,10 +93,16 @@ def get_amazon_transactions(
     if configuration is None:
         configuration = AmazonConfig()
     amazon_session = configuration.amazon_session()
-    amazon_session.login()
+    try:
+        logger.debug("Logging in to Amazon session...")
+        logger.debug(f"Session debug mode: {amazon_session.debug}")  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+        amazon_session.login()
+    except AmazonOrdersAuthError as e:
+        logger.error(f"Failed to authenticate Amazon session: {e}")
+        raise
 
     orders = _fetch_amazon_order_history(session=amazon_session, years=order_years)
-    orders_dict = {order.order_number: order for order in orders}
+    orders_dict = {order.order_number: order for order in orders}  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownVariableType]
 
     amazon_transactions = _fetch_sorted_amazon_transactions(
         transaction_days=transaction_days, amazon_session=amazon_session
@@ -104,13 +113,12 @@ def get_amazon_transactions(
         try:
             amazon_transaction_with_order_details.append(
                 AmazonTransactionWithOrderInfo.from_transaction_and_orders(
-                    orders_dict=orders_dict, transaction=transaction
+                    orders_dict=orders_dict,  # pyright: ignore[reportUnknownArgumentType]
+                    transaction=transaction,
                 )
             )
         except ValueError:
-            logger.debug(
-                f"Transaction {transaction.order_number} not found in retrieved orders."
-            )
+            logger.debug(f"Transaction {transaction.order_number} not found in retrieved orders.")  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
             continue
 
     return amazon_transaction_with_order_details
@@ -128,7 +136,7 @@ def _fetch_amazon_order_history(
     Returns:
         list[Order]: A list of Amazon orders.
     """
-    if not session.is_authenticated:
+    if not session.is_authenticated:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
         raise ValueError("Session must be authenticated.")
     amazon_orders = AmazonOrders(session)
     if years is None:
@@ -137,8 +145,8 @@ def _fetch_amazon_order_history(
     for year in years:
         if len(year_str := str(year)) == 2:
             year_str = "20" + year_str
-        all_orders.extend(amazon_orders.get_order_history(year=year_str))
-    all_orders.sort(key=lambda order: order.order_placed_date)
+        all_orders.extend(amazon_orders.get_order_history(year=year_str))  # pyright: ignore[reportArgumentType]
+    all_orders.sort(key=lambda order: order.order_placed_date)  # pyright: ignore[reportUnknownMemberType, reportUnknownLambdaType, reportAttributeAccessIssue]
 
     return all_orders
 
@@ -147,12 +155,12 @@ def _fetch_sorted_amazon_transactions(
     *, amazon_session: AmazonSession, transaction_days: int = 31
 ) -> list[Transaction]:
     """Fetches and sorts Amazon transactions."""
-    if not amazon_session.is_authenticated:
+    if not amazon_session.is_authenticated:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
         raise ValueError("Session must be authenticated.")
-    amazon_transactions = AmazonTransactions(
-        amazon_session=amazon_session
-    ).get_transactions(days=transaction_days)
-    amazon_transactions.sort(key=lambda trans: trans.completed_date)
+    amazon_transactions = AmazonTransactions(amazon_session=amazon_session).get_transactions(
+        days=transaction_days
+    )
+    amazon_transactions.sort(key=lambda trans: trans.completed_date)  # pyright: ignore[reportUnknownMemberType, reportUnknownLambdaType, reportAttributeAccessIssue]
     return amazon_transactions
 
 
@@ -180,7 +188,7 @@ def print_amazon_transactions(
             f"${transaction.order_total:.2f}",
             transaction.order_number,
             str(transaction.order_link),
-            " | ".join(_truncate_title(item.title) for item in transaction.items),
+            " | ".join(_truncate_title(item.title) for item in transaction.items),  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
         )
 
     rprint(table)

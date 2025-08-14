@@ -6,18 +6,20 @@ from loguru import logger
 from pydantic import AnyUrl
 from rich import print as rprint
 from rich.table import Table
-from ynab import ApiClient, Configuration, PayeesApi, TransactionsApi
+from ynab.api.payees_api import PayeesApi
+from ynab.api.transactions_api import TransactionsApi
+from ynab.api_client import ApiClient
+from ynab.configuration import Configuration
 from ynab.models.existing_transaction import ExistingTransaction
 from ynab.models.hybrid_transaction import HybridTransaction
 from ynab.models.payee import Payee
 from ynab.models.put_transaction_wrapper import PutTransactionWrapper
 
+from ynamazon.base import ListRootModel
 from ynamazon.exceptions import YnabSetupError
 from ynamazon.settings import settings
 
-default_configuration = Configuration(
-    access_token=settings.ynab_api_key.get_secret_value()
-)
+default_configuration = Configuration(access_token=settings.ynab_api_key.get_secret_value())
 my_budget_id = settings.ynab_budget_id
 
 
@@ -42,9 +44,41 @@ def translate_hybrid_to_temp(
         list[TempYnabTransaction]: The list of temporary YNAB transactions.
     """
     return [
-        TempYnabTransaction.model_validate(transaction.model_dump())
-        for transaction in transactions
+        TempYnabTransaction.model_validate(transaction.model_dump()) for transaction in transactions
     ]
+
+
+class TempYnabTransactions(ListRootModel[TempYnabTransaction]):
+    @classmethod
+    def from_hybrid(cls, transactions: list[HybridTransaction]) -> "TempYnabTransactions":
+        temp_transactions = translate_hybrid_to_temp(transactions)
+        return cls(root=temp_transactions)
+
+    @classmethod
+    def get_by_payee(
+        cls, payee: Payee, *, configuration: Configuration, budget_id: str
+    ) -> "TempYnabTransactions":
+        with ApiClient(configuration=configuration) as api_client:
+            response = TransactionsApi(api_client).get_transactions_by_payee(
+                budget_id=budget_id,
+                payee_id=payee.id,
+            )
+
+        return cls.from_hybrid(response.data.transactions)
+
+
+class Payees(ListRootModel[Payee]):
+    @classmethod
+    def get_by_budget(cls, *, configuration: Configuration, budget_id: str) -> "Payees":
+        with ApiClient(configuration=configuration) as api_client:
+            response = PayeesApi(api_client).get_payees(budget_id=budget_id)
+        return cls.model_validate(response.data.payees)
+
+    def get_named_payee(self, name: str) -> Payee | None:
+        for payee in self.root:
+            if payee.name == name:
+                return payee
+        return None
 
 
 def get_payees_by_budget(
@@ -97,7 +131,7 @@ def get_transactions_by_payee(
 def get_ynab_transactions(
     configuration: Union[Configuration, None] = None,
     budget_id: Union[str, None] = None,
-) -> tuple[list[TempYnabTransaction], "Payee"]:
+) -> tuple[TempYnabTransactions, "Payee"]:
     """Returns a tuple of YNAB transactions and the payee.
 
     Args:
@@ -113,19 +147,11 @@ def get_ynab_transactions(
     configuration = configuration or default_configuration
     budget_id = budget_id or my_budget_id.get_secret_value()
 
-    payees = get_payees_by_budget(configuration, budget_id)
+    payees = Payees.get_by_budget(configuration=configuration, budget_id=budget_id)
 
     rprint("Finding payees...")
-    amazon_needs_memo_payee = find_item_by_attribute(
-        items=payees,
-        attribute="name",
-        value=settings.ynab_payee_name_to_be_processed,
-    )
-    amazon_with_memo_payee = find_item_by_attribute(
-        items=payees,
-        attribute="name",
-        value=settings.ynab_payee_name_processing_completed,
-    )
+    amazon_needs_memo_payee = payees.get_named_payee(settings.ynab_payee_name_to_be_processed)
+    amazon_with_memo_payee = payees.get_named_payee(settings.ynab_payee_name_processing_completed)
     if amazon_needs_memo_payee is None:
         raise YnabSetupError(
             f"Payee '{settings.ynab_payee_name_to_be_processed}' not found in YNAB."
@@ -135,9 +161,11 @@ def get_ynab_transactions(
             f"Payee '{settings.ynab_payee_name_processing_completed}' not found in YNAB."
         )
 
-    ynab_transactions = get_transactions_by_payee(
-        budget_id=budget_id, payee=amazon_needs_memo_payee
+    ynab_transactions = TempYnabTransactions.get_by_payee(
+        amazon_needs_memo_payee, configuration=configuration, budget_id=budget_id
     )
+
+    ynab_transactions.filter(lambda t: not t.approved)
 
     return ynab_transactions, amazon_with_memo_payee
 
@@ -163,35 +191,35 @@ def update_ynab_transaction(
     data = PutTransactionWrapper(
         transaction=ExistingTransaction.model_validate(transaction.to_dict())
     )
-    
+
     # Convert memo to string if it's a MultiLineText object
     memo_str = str(memo)
-    
+
     # Ensure memo doesn't exceed 500 character limit
     if len(memo_str) > 500:
         logger.warning(f"Memo exceeds 500 character limit ({len(memo_str)} chars). Truncating...")
         # Keep the important parts - first warning line, and the URL at the end
-        lines = memo_str.split('\n')
-        
+        lines = memo_str.split("\n")
+
         # Extract the URL at the end (it must be preserved)
         url_line = lines[-1]
-        
+
         # Keep the warning header if it exists
         header = ""
-        if len(lines) > 0 and '-This transaction doesn' in lines[0]:
-            header = lines[0] + '\n\n'
-        
+        if len(lines) > 0 and "-This transaction doesn" in lines[0]:
+            header = lines[0] + "\n\n"
+
         # Calculate remaining space for content
         remaining_space = 500 - len(header) - len(url_line) - 4  # 4 chars for "...\n"
-        
+
         # Get middle content (item list) and truncate if needed
-        middle_content = '\n'.join(lines[1:-1])
+        middle_content = "\n".join(lines[1:-1])
         if len(middle_content) > remaining_space:
             middle_content = middle_content[:remaining_space] + "..."
-        
+
         # Combine the parts to stay under 500 chars
         memo_str = f"{header}{middle_content}\n{url_line}"
-    
+
     data.transaction.memo = memo_str
     data.transaction.payee_id = payee_id
     with ApiClient(configuration=configuration) as api_client:
@@ -203,9 +231,7 @@ def update_ynab_transaction(
 _T = TypeVar("_T", bound=Payee)
 
 
-def find_item_by_attribute(
-    items: Iterable[_T], attribute: str, value: Any
-) -> Union[_T, None]:
+def find_item_by_attribute(items: Iterable[_T], attribute: str, value: Any) -> Union[_T, None]:
     """Finds an item in a list by its attribute value.
 
     Args:
@@ -220,9 +246,7 @@ def find_item_by_attribute(
     if not item_list:
         return None
     if len(item_list) > 1:
-        logger.warning(
-            f"Multiple items found with {attribute} = {value}. Returning the first one."
-        )
+        logger.warning(f"Multiple items found with {attribute} = {value}. Returning the first one.")
 
     return item_list[0]
 

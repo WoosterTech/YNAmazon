@@ -1,13 +1,13 @@
 # ruff: noqa: D212, D415
 from typing import Annotated
 
+from loguru import logger
+from rich import print as rprint
 from rich.console import Console
 from rich.table import Table
-from typer import Argument, Option, Typer
-from ynab import Configuration
-from typer import Context
+from typer import Argument, Context, Option, Typer
 from typer import run as typer_run
-from rich import print as rprint
+from ynab.configuration import Configuration
 
 from ynamazon.amazon_transactions import AmazonConfig, get_amazon_transactions
 from ynamazon.main import process_transactions
@@ -45,9 +45,7 @@ def print_ynab_transactions(
     console = Console()
 
     configuration = Configuration(access_token=api_key)
-    transactions, _payee = get_ynab_transactions(
-        configuration=configuration, budget_id=budget_id
-    )
+    transactions, _payee = get_ynab_transactions(configuration=configuration, budget_id=budget_id)
 
     console.print(f"[bold green]Found {len(transactions)} transactions.[/]")
 
@@ -98,7 +96,7 @@ def print_amazon_transactions(
     """
     console = Console()
 
-    config = AmazonConfig(username=user_email, password=user_password)  # type: ignore[arg-type]
+    config = AmazonConfig(username=user_email, password=user_password)  # pyright: ignore[reportArgumentType]
 
     transactions = get_amazon_transactions(
         configuration=config,
@@ -163,14 +161,29 @@ def ynamazon(
             default_factory=lambda: settings.amazon_password.get_secret_value(),
         ),
     ],
+    force_logout: Annotated[
+        bool, Option("--force-logout", "-f", help="Force logout of Amazon account")
+    ] = False,
+    debug: Annotated[bool, Option("--debug", "-d", help="Enable debug mode")] = False,
 ) -> None:
     """
     [bold cyan]Match YNAB transactions to Amazon Transactions and optionally update YNAB Memos.[/]
 
     [yellow i]All required arguments will use defaults in .env file if not provided.[/]
     """
+    console = Console()
+    if debug:
+        logger.debug("Debug mode enabled. Logging set to DEBUG level.")
+        logger.debug(f"Amazon Credentials: {amazon_user}")
+
+    config = AmazonConfig(username=amazon_user, password=amazon_password, debug=debug)  # pyright: ignore[reportArgumentType]
+
+    if force_logout:
+        console.print("[bold yellow]Forcing logout of Amazon account...[/]")
+        config.amazon_session().logout()
+
     process_transactions(
-        amazon_config=AmazonConfig(username=amazon_user, password=amazon_password),  # type: ignore[arg-type]
+        amazon_config=config,
         ynab_config=Configuration(access_token=ynab_api_key),
         budget_id=ynab_budget_id,
     )

@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from amazonorders.entity.item import Item  # type: ignore[import-untyped]
+from amazonorders.entity.item import Item
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
@@ -8,7 +8,9 @@ from pydantic_core import CoreSchema, core_schema
 class _AmazonItem:
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: "GetCoreSchemaHandler"
+        cls,
+        source_type: Any,  # pyright: ignore[reportExplicitAny, reportAny]
+        handler: "GetCoreSchemaHandler",
     ) -> CoreSchema:
         return core_schema.is_instance_schema(Item)
 
